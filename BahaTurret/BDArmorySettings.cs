@@ -421,9 +421,12 @@ namespace BahaTurret
 			kspTitleLabel.fontSize = HighLogic.Skin.window.fontSize;
 			kspTitleLabel.fontStyle = HighLogic.Skin.window.fontStyle;
 			kspTitleLabel.alignment = TextAnchor.UpperCenter;
-			//
 
-			if(HighLogic.LoadedSceneIsFlight)
+            //Load the bullet configs
+            if (BulletInfo.bullets == null)
+                BulletInfo.Load();
+
+            if (HighLogic.LoadedSceneIsFlight)
 			{
 				ApplyPhysRange();
 				SaveVolumeSettings();
