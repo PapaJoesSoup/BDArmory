@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -7,8 +7,6 @@ namespace BahaTurret
     public class PooledBullet : MonoBehaviour
     {
         public BulletInfo bullet;
-        public float leftPenetration = 1;
-
         public enum PooledBulletTypes { Standard, Explosive }
         public enum BulletDragTypes { None, AnalyticEstimate, NumericalIntegration }
 
@@ -35,6 +33,7 @@ namespace BahaTurret
 
         public float initialSpeed;
 
+        public float leftPenetration;
 
         public Vector3 prevPosition;
         public Vector3 currPosition;
@@ -80,7 +79,6 @@ namespace BahaTurret
 
         public static Shader bulletShader;
         public static bool shaderInitialized = false;
-
         void OnEnable()
         {
             startPosition = transform.position;
@@ -155,9 +153,9 @@ namespace BahaTurret
 
             hasBounced = false;
 
-
-
             wasInitiated = true;
+
+            leftPenetration = 1;
 
             StartCoroutine(FrameDelayedRoutine());
         }
@@ -208,8 +206,6 @@ namespace BahaTurret
 
                 currentVelocity -= dragAcc * TimeWarp.fixedDeltaTime;       //numerical integration; using Euler is silly, but let's go with it anyway
             }
-
-
             if (tracerLength == 0)
             {
                 bulletTrail.SetPosition(0, transform.position + (currentVelocity * tracerDeltaFactor * TimeWarp.fixedDeltaTime / TimeWarp.CurrentRate) - (FlightGlobals.ActiveVessel.rb_velocity * TimeWarp.fixedDeltaTime));
@@ -242,11 +238,13 @@ namespace BahaTurret
             if (collisionEnabled)
             {
                 float dist = initialSpeed * TimeWarp.fixedDeltaTime;
-
                 Ray ray = new Ray(prevPosition, currPosition - prevPosition);
                 RaycastHit hit;
                 if (Physics.Raycast(ray, out hit, dist, 557057))
                 {
+
+
+
                     var armorData = new Data(ray, hit);
                     ArmorCheck(armorData);
                     var penetration = bullet.penetration.Evaluate(distanceFromStart) / 1000;
@@ -263,6 +261,9 @@ namespace BahaTurret
                     {
                         currPosition = hit.point;
                     }
+
+
+
                     bool penetrated = true;
                     Part hitPart = null;   //determine when bullet collides with a target
                     float hitAngle = Vector3.Angle(currentVelocity, -hit.normal);
@@ -326,8 +327,6 @@ namespace BahaTurret
                             {
                                 heatDamage = heatDamage / 8;
                             }
-                            if (penetrated2)
-                                heatDamage /= 8;
                             if (BDArmorySettings.INSTAKILL)  //instakill support, will be removed once mod becomes officially MP
                             {
                                 heatDamage = (float)hitPart.maxTemp + 100; //make heat damage equal to the part's max temperture, effectively instakilling any part it hits
@@ -335,7 +334,8 @@ namespace BahaTurret
                             if (BDArmorySettings.DRAW_DEBUG_LABELS) Debug.Log("Hit! damage applied: " + heatDamage); //debugging stuff
 
                             if (hitPart.vessel != sourceVessel) hitPart.temperature += heatDamage;  //apply heat damage to the hit part.
-
+                            if (penetrated2)
+                                heatDamage /= 8;
                             float overKillHeatDamage = (float)(hitPart.temperature - hitPart.maxTemp);
 
                             if (overKillHeatDamage > 0)      //if the part is destroyed by overheating, we want to add the remaining heat to attached parts.  This prevents using tiny parts as armor
@@ -415,7 +415,6 @@ namespace BahaTurret
                             currentVelocity = (hitAngle / 150) * currentVelocity * 0.65f;
 
                             Vector3 randomDirection = UnityEngine.Random.rotation * Vector3.one;
-
                             currentVelocity = Vector3.RotateTowards(currentVelocity, randomDirection, UnityEngine.Random.Range(0f, 5f) * Mathf.Deg2Rad, 0);
                         }
                         else
@@ -428,9 +427,6 @@ namespace BahaTurret
                             {
                                 BulletHitFX.CreateBulletHit(hit.point, hit.normal, false);
                             }
-
-
-
                             //GameObject.Destroy(gameObject); //destroy bullet on collision
                             if (penetrated2)
                             {
@@ -450,27 +446,27 @@ namespace BahaTurret
                 }
 
                 /*
-				if(isUnderwater)
-				{
-					if(FlightGlobals.getAltitudeAtPos(transform.position) > 0)
-					{
-						isUnderwater = false;
-					}
-					else
-					{
-						rigidbody.AddForce(-rigidbody.velocity * 0.15f);
-					}
-				}
-				else
-				{
-					if(FlightGlobals.getAltitudeAtPos(transform.position) < 0)
-					{
-						isUnderwater = true;
-						//FXMonger.Splash(transform.position, 1);
-						//make a custom splash here
-					}
-				}
-				*/
+                if(isUnderwater)
+                {
+                    if(FlightGlobals.getAltitudeAtPos(transform.position) > 0)
+                    {
+                        isUnderwater = false;
+                    }
+                    else
+                    {
+                        rigidbody.AddForce(-rigidbody.velocity * 0.15f);
+                    }
+                }
+                else
+                {
+                    if(FlightGlobals.getAltitudeAtPos(transform.position) < 0)
+                    {
+                        isUnderwater = true;
+                        //FXMonger.Splash(transform.position, 1);
+                        //make a custom splash here
+                    }
+                }
+                */
             }
 
             if (bulletType == PooledBulletTypes.Explosive && airDetonation && distanceFromStart > detonationRange)
@@ -488,7 +484,6 @@ namespace BahaTurret
             //move bullet
             transform.position += currentVelocity * Time.fixedDeltaTime;
         }
-
 
         public void UpdateWidth(Camera c, float resizeFactor)
         {
@@ -575,3 +570,4 @@ namespace BahaTurret
         }
     }
 }
+
