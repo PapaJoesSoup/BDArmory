@@ -1,1 +1,1 @@
-E:\KSP\Mods\PJS\Tools\pdb2mdb\pdb2mdb.exe
+E:\pdb2mdb\pdb2mdb.exe

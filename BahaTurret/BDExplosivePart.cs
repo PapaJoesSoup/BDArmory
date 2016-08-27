@@ -6,10 +6,14 @@ namespace BahaTurret
 	public class BDExplosivePart : PartModule
 	{
 		
-		[KSPField(isPersistant = false)]
+		[KSPField(isPersistant = true, guiActive = true, guiActiveEditor = false, guiName = "Blast Radius" ),
+            UI_Label(affectSymCounterparts = UI_Scene.All, controlEnabled = true, scene = UI_Scene.All)]
 		public float blastRadius = 50;
-		[KSPField(isPersistant = false)]
-		public float blastPower = 25;
+
+
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = false, guiName = "Blast Power"),
+        UI_Label(affectSymCounterparts = UI_Scene.All, controlEnabled = true, scene = UI_Scene.All)]
+        public float blastPower = 25;
 
 		[KSPField]
 		public float blastHeat = -1;
@@ -20,7 +24,7 @@ namespace BahaTurret
 			Detonate ();
 		}
 	
-
+        private double previousMass = -1;
 		/*
 		[KSPField(isPersistant = true, guiActiveEditor = true, guiName = "Proxy Detonate")]
 		public bool proximityDetonation = false;
@@ -35,18 +39,33 @@ namespace BahaTurret
 		{
 			part.OnJustAboutToBeDestroyed += new Callback(Detonate);
 			part.force_activate();
-			
+		    CalculateBlast();
 		}
-		
-		public override void OnFixedUpdate()
-		{
-			/*
-			if(hasFired && proximityDetonation && Vector3.Distance(target.transform.position, transform.position+rigidbody.velocity*Time.fixedDeltaTime) < blastRadius/2)
-			{
-				Detonate();
-			}
-			*/
-		}
+
+        public void Update()
+        {
+            if (HighLogic.LoadedSceneIsEditor)
+                OnUpdateEditor();
+        }
+
+	    private void OnUpdateEditor()
+	    {
+            CalculateBlast();
+        }
+
+	    private void CalculateBlast()
+	    {
+            
+            if (this.part.Resources["HighExplosive"].amount == this.previousMass) return;
+           
+	        var explosiveMass = this.part.Resources["HighExplosive"].amount;
+            //=LOG10(m+1)*(10+(m^1.6/(14*m+1)))
+            this.blastPower = (float) Math.Round(Math.Log10(1 + explosiveMass) * (10 + Math.Pow(explosiveMass, 1.6)/(14 * explosiveMass + +1)), 0);
+           
+            this.blastRadius = 2 * this.blastPower;
+
+	        this.previousMass = this.part.Resources["HighExplosive"].amount;
+	    }
 		
 		public void Detonate()
 		{

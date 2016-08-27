@@ -54,3 +54,6 @@ SaveUpgradePipeline.Core.dll
 UnityEngine.UI.dll
 UnityEngine.xml
 Vectrosity.dll
+/BahaTurret/obj
+/BahaTurret/.vs/BDArmory/v14
+/BahaTurret/bin/Release

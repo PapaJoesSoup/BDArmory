@@ -27,7 +27,7 @@ namespace BahaTurret
 			
 			foreach(var bdmm in vessel.FindPartModulesImplementing<BDModularGuidance>())
 			{
-				bdmm.hasFired = true;
+				bdmm.HasFired = true;
 				//bdmm.target = target;
 			}
 			foreach(var bde in vessel.FindPartModulesImplementing<BDExplosivePart>())
