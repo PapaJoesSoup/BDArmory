@@ -12,6 +12,7 @@ namespace BahaTurret
         public float blastRadius { get; private set; }
         public float blastPower { get; private set; }
         public float blastHeat { get; private set; }
+        public float outerArmorThickness { get; private set; }
         public string explModelPath { get; private set; }
         public string explSoundPath { get; private set; }
 
@@ -41,6 +42,11 @@ namespace BahaTurret
                 blastHeat = float.Parse(configNode.GetValue("blastHeat"));
             else
                 blastHeat = 1;
+
+            if (configNode.HasValue("outerArmorThickness"))
+                outerArmorThickness = float.Parse(configNode.GetValue("outerArmorThickness"));
+            else
+                outerArmorThickness = -1;
 
             if (configNode.HasValue("explModelPath"))
                 explModelPath = configNode.GetValue("explModelPath");

@@ -261,11 +261,11 @@ namespace BahaTurret
                     ArmorCheck(armorData);
                     var penetration = bullet.penetration.Evaluate(distanceFromStart) / 1000;
                     leftPenetration -= armorData.armorThickness / penetration;
-                    var penetrated2 = penetration * leftPenetration > ((armor == null) ? 1f : armor.EquivalentThickness) * armorData.armorThickness;
+                    var fulllyPenetrated = penetration * leftPenetration > ((armor == null) ? 1f : armor.EquivalentThickness) * armorData.armorThickness;
                     var finalDirect = Vector3.Lerp(ray.direction, -hit.normal, bullet.positiveCoefficient);
 
 
-                    if (penetrated2)
+                    if (fulllyPenetrated)
                     {
                         currentVelocity = finalDirect * currentVelocity.magnitude * leftPenetration;
                     }
@@ -326,7 +326,7 @@ namespace BahaTurret
                             {
                                 heatDamage = heatDamage / 8;
                             }
-                            if (penetrated2)
+                            if (fulllyPenetrated)
                             {
                                 heatDamage /= 8;
                             }
@@ -400,7 +400,7 @@ namespace BahaTurret
 
                     if (hitPart == null || (hitPart != null && hitPart.vessel != sourceVessel))
                     {
-                        if (!penetrated && !hasBounced && !penetrated2)
+                        if (!penetrated && !hasBounced && !fulllyPenetrated)
                         {
                             //ricochet
                             hasBounced = true;
@@ -432,26 +432,24 @@ namespace BahaTurret
                             }
 
 
-
-                            //GameObject.Destroy(gameObject); //destroy bullet on collision
-                            if (penetrated2)
+                            if (armor != null && penetration * leftPenetration > armor.outerArmorThickness * armor.EquivalentThickness)
                             {
-                                if (armor != null)
+                                switch (armor.explodeMode)
                                 {
-                                    switch (armor.explodeMode)
-                                    {
-                                        case BDArmor.ExplodeMode.Always:
+                                    case BDArmor.ExplodeMode.Always:
+                                        armor.CreateExplosion(hitPart);
+                                        break;
+                                    case BDArmor.ExplodeMode.Dynamic:
+                                        var probability = CalculateExplosionProbability(hitPart);
+                                        if (probability > 0.1f)
                                             armor.CreateExplosion(hitPart);
-                                            break;
-                                        case BDArmor.ExplodeMode.Dynamic:
-                                            var probability = CalculateExplosionProbability(hitPart);
-                                            if (probability > 0.1f)
-                                               armor.CreateExplosion(hitPart);
-                                            break;
-                                        case BDArmor.ExplodeMode.Never:
-                                            break;
-                                    }
+                                        break;
+                                    case BDArmor.ExplodeMode.Never:
+                                        break;
                                 }
+                            }
+                            if (fulllyPenetrated)
+                            {
                                 transform.position = armorData.hitResultOut.point;
                                 flightTimeElapsed -= Time.fixedDeltaTime;
                                 prevPosition = transform.position;
