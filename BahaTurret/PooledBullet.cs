@@ -432,7 +432,7 @@ namespace BahaTurret
                             }
 
 
-                            if (armor != null && penetration * leftPenetration > armor.outerArmorThickness * armor.EquivalentThickness)
+                            if (armor != null && (penetration * leftPenetration > armor.outerArmorThickness * armor.EquivalentThickness || fulllyPenetrated))
                             {
                                 switch (armor.explodeMode)
                                 {

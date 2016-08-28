@@ -46,7 +46,7 @@ namespace BahaTurret
             if (configNode.HasValue("outerArmorThickness"))
                 outerArmorThickness = float.Parse(configNode.GetValue("outerArmorThickness"));
             else
-                outerArmorThickness = -1;
+                outerArmorThickness = float.MaxValue;
 
             if (configNode.HasValue("explModelPath"))
                 explModelPath = configNode.GetValue("explModelPath");
