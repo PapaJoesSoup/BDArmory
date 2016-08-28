@@ -441,11 +441,12 @@ namespace BahaTurret
                                     switch (armor.explodeMode)
                                     {
                                         case BDArmor.ExplodeMode.Always:
-                                            hitPart.explode();
+                                            ExplosionFX.CreateExplosion(hit.collider.bounds.center, armor.blastRadius, armor.blastPower, armor.blastHeat, sourceVessel, transform.forward, armor.explModelPath, armor.explSoundPath); //TODO: apply separate heat damage
                                             break;
                                         case BDArmor.ExplodeMode.Dynamic:
+                                            var probability = CalculateExplosionProbability(hitPart);
                                             if (CalculateExplosionProbability(hitPart) >= UnityEngine.Random.value)
-                                                hitPart.explode();
+                                                ExplosionFX.CreateExplosion(hit.collider.bounds.center, armor.blastRadius * probability, armor.blastPower * probability, armor.blastHeat * probability, sourceVessel, transform.forward, armor.explModelPath, armor.explSoundPath);
                                             break;
                                         case BDArmor.ExplodeMode.Never:
                                             break;
@@ -586,12 +587,10 @@ namespace BahaTurret
                 switch (current.resourceName)
                 {
                     case "LiquidFuel":
-                        if (current.amount / current.maxAmount >= UnityEngine.Random.value)
-                            probability++;
+                        probability += (float)(current.amount / current.maxAmount);
                         break;
                     case "Oxidizer":
-                        if (current.amount / current.maxAmount >= UnityEngine.Random.value)
-                            probability += 0.5f;
+                        probability += (float)(current.amount / current.maxAmount);
                         break;
                 }
             }

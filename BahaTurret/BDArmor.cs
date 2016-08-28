@@ -9,6 +9,12 @@ namespace BahaTurret
     {
         public float EquivalentThickness { get; private set; }
         public ExplodeMode explodeMode { get; private set; }
+        public float blastRadius { get; private set; }
+        public float blastPower { get; private set; }
+        public float blastHeat { get; private set; }
+        public string explModelPath { get; private set; }
+        public string explSoundPath { get; private set; }
+
         public BDArmor(ConfigNode configNode)
         {
             if (configNode.HasValue("EquivalentThickness"))
@@ -19,6 +25,16 @@ namespace BahaTurret
                 explodeMode = (ExplodeMode)Enum.Parse(typeof(ExplodeMode), configNode.GetValue("ExplodeMode"));
             else
                 explodeMode = ExplodeMode.Never;
+            if (configNode.HasValue("blastRadius"))
+                blastRadius = float.Parse(configNode.GetValue("blastRadius"));
+            if (configNode.HasValue("blastPower"))
+                blastPower = float.Parse(configNode.GetValue("blastPower"));
+            if (configNode.HasValue("blastHeat"))
+                blastHeat = float.Parse(configNode.GetValue("blastHeat"));
+            if (configNode.HasValue("explModelPath"))
+                explModelPath = configNode.GetValue("explModelPath");
+            if (configNode.HasValue("explSoundPath"))
+                explSoundPath = configNode.GetValue("explSoundPath");
         }
         public static BDArmor GetArmor(Collider collider,Part hitPart)
         {
