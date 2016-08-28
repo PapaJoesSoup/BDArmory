@@ -21,22 +21,58 @@ namespace BahaTurret
                 EquivalentThickness = float.Parse(configNode.GetValue("EquivalentThickness"));
             else
                 EquivalentThickness = 1;
+
             if (configNode.HasValue("ExplodeMode"))
                 explodeMode = (ExplodeMode)Enum.Parse(typeof(ExplodeMode), configNode.GetValue("ExplodeMode"));
             else
                 explodeMode = ExplodeMode.Never;
+
             if (configNode.HasValue("blastRadius"))
                 blastRadius = float.Parse(configNode.GetValue("blastRadius"));
+            else
+                blastRadius = 1;
+
             if (configNode.HasValue("blastPower"))
                 blastPower = float.Parse(configNode.GetValue("blastPower"));
+            else
+                blastPower = 1;
+
             if (configNode.HasValue("blastHeat"))
                 blastHeat = float.Parse(configNode.GetValue("blastHeat"));
+            else
+                blastHeat = 1;
+
             if (configNode.HasValue("explModelPath"))
                 explModelPath = configNode.GetValue("explModelPath");
+            else
+                explModelPath = "BDArmory/Models/explosion/explosionLarge";
+
             if (configNode.HasValue("explSoundPath"))
                 explSoundPath = configNode.GetValue("explSoundPath");
+            else
+                explSoundPath = "BDArmory/Sounds/explode1";
         }
-        public static BDArmor GetArmor(Collider collider,Part hitPart)
+        public void CreateExplosion(Part part)
+        {
+            float explodeScale = 0;
+            for (int i = 0; i < part.Resources.Count; i++)
+            {
+                var current = part.Resources[i];
+                switch (current.resourceName)
+                {
+                    case "LiquidFuel":
+                        explodeScale += (float)current.amount;
+                        break;
+                    case "Oxidizer":
+                        explodeScale += (float)current.amount;
+                        break;
+                }
+            }
+            explodeScale /= 100;
+            part.explode();
+            ExplosionFX.CreateExplosion(part.partTransform.position, explodeScale * blastRadius, explodeScale * blastPower * 2, explodeScale * blastHeat, part.vessel, FlightGlobals.upAxis, explModelPath, explSoundPath);
+        }
+        public static BDArmor GetArmor(Collider collider, Part hitPart)
         {
             if (!hitPart)
                 return null;

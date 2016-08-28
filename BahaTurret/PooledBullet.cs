@@ -441,12 +441,12 @@ namespace BahaTurret
                                     switch (armor.explodeMode)
                                     {
                                         case BDArmor.ExplodeMode.Always:
-                                            ExplosionFX.CreateExplosion(hit.collider.bounds.center, armor.blastRadius, armor.blastPower, armor.blastHeat, sourceVessel, transform.forward, armor.explModelPath, armor.explSoundPath); //TODO: apply separate heat damage
+                                            armor.CreateExplosion(hitPart);
                                             break;
                                         case BDArmor.ExplodeMode.Dynamic:
                                             var probability = CalculateExplosionProbability(hitPart);
-                                            if (CalculateExplosionProbability(hitPart) >= UnityEngine.Random.value)
-                                                ExplosionFX.CreateExplosion(hit.collider.bounds.center, armor.blastRadius * probability, armor.blastPower * probability, armor.blastHeat * probability, sourceVessel, transform.forward, armor.explModelPath, armor.explSoundPath);
+                                            if (probability > 0.1f)
+                                               armor.CreateExplosion(hitPart);
                                             break;
                                         case BDArmor.ExplodeMode.Never:
                                             break;
@@ -595,7 +595,7 @@ namespace BahaTurret
                 }
             }
             if (bulletType == PooledBulletTypes.Explosive)
-                probability += 0.2f;
+                probability += 0.1f;
             return probability;
         }
         private class Data
