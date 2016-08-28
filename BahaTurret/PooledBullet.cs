@@ -247,8 +247,17 @@ namespace BahaTurret
                 RaycastHit hit;
                 if (Physics.Raycast(ray, out hit, dist, 557057))
                 {
+                    bool penetrated = true;
+                    Part hitPart = null;   //determine when bullet collides with a target
+                    try
+                    {
+                        hitPart = Part.FromGO(hit.rigidbody.gameObject);
+                    }
+                    catch (NullReferenceException)
+                    {
+                    }
+                    var armor = BDArmor.GetArmor(hit.collider, hitPart);
                     var armorData = new Data(ray, hit);
-                    var armor = BDArmor.GetArmor(hit.collider);
                     ArmorCheck(armorData);
                     var penetration = bullet.penetration.Evaluate(distanceFromStart) / 1000;
                     leftPenetration -= armorData.armorThickness / penetration;
@@ -264,8 +273,6 @@ namespace BahaTurret
                     {
                         currPosition = hit.point;
                     }
-                    bool penetrated = true;
-                    Part hitPart = null;   //determine when bullet collides with a target
                     float hitAngle = Vector3.Angle(currentVelocity, -hit.normal);
 
                     if (bulletType != PooledBulletTypes.Explosive) //dont do bullet damage if it is explosive
@@ -296,14 +303,6 @@ namespace BahaTurret
                         /////////////////////////////////////////////////[panzer1b] HEAT BASED DAMAGE CODE START//////////////////////////////////////////////////////////////
                         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-                        try
-                        {
-                            hitPart = Part.FromGO(hit.rigidbody.gameObject);
-                        }
-                        catch (NullReferenceException)
-                        {
-                        }
 
 
                         if (hitPart != null) //see if it will ricochet of the part
@@ -596,6 +595,8 @@ namespace BahaTurret
                         break;
                 }
             }
+            if (bulletType == PooledBulletTypes.Explosive)
+                probability += 0.2f;
             return probability;
         }
         private class Data

@@ -20,9 +20,8 @@ namespace BahaTurret
             else
                 explodeMode = ExplodeMode.Never;
         }
-        public static BDArmor GetArmor(Collider collider)
+        public static BDArmor GetArmor(Collider collider,Part hitPart)
         {
-            var hitPart = Part.FromGO(collider.gameObject);
             if (!hitPart)
                 return null;
             var nodes = hitPart.partInfo.partConfig.GetNodes("BDARMOR");
