@@ -257,10 +257,9 @@ namespace BahaTurret
                     {
                     }
                     var armor = BDArmor.GetArmor(hit.collider, hitPart);
-                    var armorData = new Data(ray, hit);
-                    ArmorCheck(armorData);
+                    var armorData = new ArmorPenetration.BulletPenetrationData(ray, hit);
+                    ArmorPenetration.DoPenetrationRay(armorData,bullet.positiveCoefficient);
                     var penetration = bullet.penetration.Evaluate(distanceFromStart) / 1000;
-                    leftPenetration -= armorData.armorThickness / penetration;
                     var fulllyPenetrated = penetration * leftPenetration > ((armor == null) ? 1f : armor.EquivalentThickness) * armorData.armorThickness;
                     var finalDirect = Vector3.Lerp(ray.direction, -hit.normal, bullet.positiveCoefficient);
 
@@ -272,6 +271,7 @@ namespace BahaTurret
                     else
                     {
                         currPosition = hit.point;
+                        bulletTrail.SetPosition(1, currPosition);
                     }
                     float hitAngle = Vector3.Angle(currentVelocity, -hit.normal);
 
@@ -432,7 +432,7 @@ namespace BahaTurret
                             }
 
 
-                            if (armor != null && (penetration * leftPenetration > armor.outerArmorThickness * armor.EquivalentThickness || fulllyPenetrated))
+                            if (armor != null && (penetration * leftPenetration > armor.outerArmorThickness / 1000 * armor.EquivalentThickness || fulllyPenetrated))
                             {
                                 switch (armor.explodeMode)
                                 {
@@ -450,6 +450,7 @@ namespace BahaTurret
                             }
                             if (fulllyPenetrated)
                             {
+                                leftPenetration -= armorData.armorThickness / penetration;
                                 transform.position = armorData.hitResultOut.point;
                                 flightTimeElapsed -= Time.fixedDeltaTime;
                                 prevPosition = transform.position;
@@ -558,24 +559,6 @@ namespace BahaTurret
                 return false;
             }
         }
-        private void ArmorCheck(Data data)
-        {
-            var ray = data.rayIn;
-            var hit = data.hitResultIn;
-            var finalDirect = Vector3.Lerp(ray.direction, -hit.normal, bullet.positiveCoefficient);
-            var maxDis = hit.collider.bounds.size.magnitude;
-            var point = finalDirect * maxDis + hit.point;
-            var ray1 = new Ray(point, -finalDirect);
-            RaycastHit hit1;
-            if (hit.collider.Raycast(ray1, out hit1, maxDis))
-            {
-                data.rayOut = new Ray(point, -finalDirect);
-                data.hitResultOut = hit1;
-                data.armorThickness = Vector3.Distance(hit.point, hit1.point);
-                return;
-            }
-            data.armorThickness = float.MaxValue;
-        }
         private float CalculateExplosionProbability(Part part)
         {
             float probability = 0;
@@ -595,19 +578,6 @@ namespace BahaTurret
             if (bulletType == PooledBulletTypes.Explosive)
                 probability += 0.1f;
             return probability;
-        }
-        private class Data
-        {
-            public Ray rayIn;
-            public RaycastHit hitResultIn;
-            public Ray rayOut;
-            public RaycastHit hitResultOut;
-            public float armorThickness;
-            public Data(Ray ray, RaycastHit hitResult)
-            {
-                rayIn = ray;
-                hitResultIn = hitResult;
-            }
         }
     }
 }
