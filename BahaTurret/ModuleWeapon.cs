@@ -8,6 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 using System;
+using System.Text;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -1972,6 +1973,23 @@ namespace BahaTurret
 			}
 		}
 
+
+		// RMB info in editor
+		public override string GetInfo()
+		{
+			var output = new StringBuilder();
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Weapon Type: {0}", eWeaponType.ToString()));
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Rounds Per Minute: {0}", roundsPerMinute));
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Ammunition: {0}", ammoName));
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Max Range: {0} meters", maxEffectiveDistance));
+			output.Append(Environment.NewLine);
+			return output.ToString();
+
+		}
 
 
 	}

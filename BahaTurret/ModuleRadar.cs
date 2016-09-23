@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using System.Text;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -465,8 +466,12 @@ namespace BahaTurret
 			//UpdateSlaveData();
 		}
 
+
+
 		void FixedUpdate()
 		{
+
+
 			if(HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && startupComplete)
 			{
 				if(!vessel.IsControllable && radarEnabled)
@@ -1038,6 +1043,53 @@ namespace BahaTurret
 		////////////////END GUI
 
 
+		public string getRWRType(int i)
+		{
+			switch (i) {
+			case 0:
+				return "SAM";
+			case 1:
+				return "FIGHTER";
+			case 2:
+				return "AWACS";
+			case 3:
+			case 4:
+				return "MISSILE";
+			case 5:
+				return "DETECTION";
+			}
+			return "UNKNOWN";
+			//{SAM = 0, Fighter = 1, AWACS = 2, MissileLaunch = 3, MissileLock = 4, Detection = 5}
+		}
+
+
+		// RMB info in editor
+		public override string GetInfo()
+		{
+			var output = new StringBuilder();
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Radar Type: {0}", this.radarName));
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Range: {0} meters", this.maxRange));
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("RWR Threat Type: {0}", getRWRType(rwrThreatType)));
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Can Scan: {0}", canScan));
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Track-While-Scan: {0}", canTrackWhileScan));
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Can Lock: {0}", canLock));
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Can Receive Data: {0}", canRecieveRadarData));
+			output.Append(Environment.NewLine);
+			if (canLock) {
+				output.Append(String.Format("Simultaneous Locks: {0}", maxLocks));
+				output.Append(Environment.NewLine);
+			}
+
+			return output.ToString();
+
+		}
 
 	}
 }

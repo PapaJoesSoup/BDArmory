@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -2368,6 +2369,31 @@ namespace BahaTurret
 
 			tModeString = Enum.GetName(typeof(TargetingModes), targetingMode);
 		}
+
+
+
+		// RMB info in editor
+		public override string GetInfo()
+		{
+			var output = new StringBuilder();
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Weapon Type: {0}", "Missile"));
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Guidance Mode: {0}", homingType.ToString().ToUpper()));
+			output.Append(Environment.NewLine);
+			output.Append(String.Format("Targetting Mode: {0}", targetingType.ToString().ToUpper()));
+			output.Append(Environment.NewLine);
+			if (activeRadar) {
+				output.Append(String.Format("Active Radar Range: {0}", activeRadarRange));
+				output.Append(Environment.NewLine);
+			}
+
+			output.Append(String.Format("Min/Max Range: {0}/{1} meters", minStaticLaunchRange, maxStaticLaunchRange));
+			output.Append(Environment.NewLine);
+			return output.ToString();
+
+		}
+
 		
 	}
 }
