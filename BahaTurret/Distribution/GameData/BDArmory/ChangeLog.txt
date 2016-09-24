@@ -1,4 +1,16 @@
-v-0.11.1.1
+v0.11.1.3beta
+- Updated to be compatible with KSP 1.2. (Prerelease only)
+- Add window persistence.  Remember where I put my windows, darn it! Git Issue #13 - Partial implementation.
+- Fix reload sounds on M1Abrams and M102 parts.  Git Issue #39
+- Fix missing weapon icon in staging part list.
+- Fix missing reload bar next to icon.
+- Fix missing heat guage next to icon.
+
+v0.11.1.2
+- Fix sound issue with Hydra 70.  Git Issue #1
+- Fix PAC Lag issue.  Git Issue #3
+
+v0.11.1.1
 - Revert Assembly version back to 1.0.  Some mods depend on the version number of the assembly when reflecting.
 
 v-0.11.1.0

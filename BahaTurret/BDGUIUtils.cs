@@ -9,6 +9,8 @@
 //------------------------------------------------------------------------------
 using System;
 using UnityEngine;
+using Random = UnityEngine.Random;
+
 namespace BahaTurret
 {
 	public static class BDGUIUtils
@@ -37,8 +39,8 @@ namespace BahaTurret
 			float yPos = (1-screenPos.y)*Screen.height-(0.5f*size.y);
 			if(wobble > 0)
 			{
-				xPos += UnityEngine.Random.Range(-wobble/2, wobble/2);
-				yPos += UnityEngine.Random.Range(-wobble/2, wobble/2);
+				xPos += Random.Range(-wobble/2, wobble/2);
+				yPos += Random.Range(-wobble/2, wobble/2);
 			}
 			Rect iconRect = new Rect(xPos, yPos, size.x, size.y);
 
@@ -142,6 +144,16 @@ namespace BahaTurret
 				Event.current.Use();
 			}
 		}
+
+	  public static Rect CleanRectVals(Rect rect)
+	  {
+	    // Remove decimal places so Mac does not complain.
+	    rect.x = (int)rect.x;
+	    rect.y = (int)rect.y;
+	    rect.width = (int)rect.width;
+	    rect.height = (int)rect.height;
+	    return rect;
+	  }
 	}
 }
 

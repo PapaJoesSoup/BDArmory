@@ -349,7 +349,7 @@ namespace BahaTurret
 
 		public static float GetRadarAltitude(Vessel vessel)
 		{
-			float radarAlt = Mathf.Clamp((float)(vessel.mainBody.GetAltitude(vessel.findWorldCenterOfMass())-vessel.terrainAltitude), 0, (float)vessel.altitude);
+			float radarAlt = Mathf.Clamp((float)(vessel.mainBody.GetAltitude(vessel.CoM)-vessel.terrainAltitude), 0, (float)vessel.altitude);
 			return radarAlt;
 		}
 

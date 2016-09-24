@@ -10,10 +10,10 @@ namespace BahaTurret
 	public class BDArmorySettings : MonoBehaviour
 	{
 		public static string settingsConfigURL = "GameData/BDArmory/settings.cfg";
-		
 
-		//=======configurable settings
-		[BDAPersistantSettingsField]
+
+    //=======configurable settings
+    [BDAPersistantSettingsField]
 		public static bool INSTAKILL = false;
 		[BDAPersistantSettingsField]
 		public static bool BULLET_HITS = true;
@@ -77,9 +77,20 @@ namespace BahaTurret
 		[BDAPersistantSettingsField]
 		public static bool PEACE_MODE = false;
 
-		//==================
-		//reflection field lists
-		FieldInfo[] iFs = null;
+    //=======Window position settings Git Issue #13
+    [BDAWindowSettingsField]
+    public static Rect WindowRectToolbar;
+    [BDAWindowSettingsField]
+    public static Rect WindowRectGps;
+    [BDAWindowSettingsField]
+    public static Rect WindowRectSettings;
+    [BDAWindowSettingsField]
+    public static Rect WindowRectRwr;
+
+
+	  //==================
+    //reflection field lists
+    FieldInfo[] iFs = null;
 		FieldInfo[] inputFields
 		{
 			get
@@ -124,7 +135,6 @@ namespace BahaTurret
 		public static bool toolbarGuiEnabled = false;
 		float toolWindowWidth = 300;
 		float toolWindowHeight = 100;
-		public Rect toolbarWindowRect;
 		bool showWeaponList = false;
 		bool showGuardMenu = false;
 		bool showModules = false;
@@ -139,14 +149,13 @@ namespace BahaTurret
 			}
 		}
 		bool showGPSWindow = false;
-		Rect gpsWindowRect;
 		float gpsEntryCount = 0;
 		float gpsEntryHeight = 24;
 		float gpsBorder = 5;
 		bool editingGPSName = false;
 		int editingGPSNameIndex = 0;
 		bool hasEnteredGPSName = false;
-		string newGPSName = string.Empty;
+		string newGPSName = String.Empty;
 
 		public MissileFire ActiveWeaponManager = null;
 		public bool missileWarning = false;
@@ -349,14 +358,19 @@ namespace BahaTurret
 		{	
 			Instance = this;
 
-			//settings
-			SetupSettingsSize();
+			//wmgr toolbar
+
+      // window position settings
+			WindowRectToolbar = new Rect(Screen.width-toolWindowWidth-40, 150, toolWindowWidth, toolWindowHeight); // Default, if not in file.
+      WindowRectGps = new Rect(0, 0, WindowRectToolbar.width - 10, 0);
+      SetupSettingsSize();
+      BDAWindowSettingsField.Load();
+      WindowRectGps.width = WindowRectToolbar.width - 10;
+
+      //settings
 			LoadConfig();
 
-			//wmgr tolbar
-			toolbarWindowRect = new Rect(Screen.width-toolWindowWidth-4, 150, toolWindowWidth, toolWindowHeight);
-
-			physRangeTimer = Time.time;
+		  physRangeTimer = Time.time;
 
 			
 			GAME_UI_ENABLED = true;
@@ -442,15 +456,11 @@ namespace BahaTurret
 				}
 				*/
 
-				gpsWindowRect = new Rect(0, 0, toolbarWindowRect.width-10, 0);
-
 				GameEvents.onVesselChange.Add(VesselChange);
 			}
 		}
 
-
-		
-		void Update()
+	  void Update()
 		{
 			if(HighLogic.LoadedSceneIsFlight)
 			{
@@ -567,7 +577,7 @@ namespace BahaTurret
 			drawCursor = false;
 			if(!MapView.MapIsEnabled && !Misc.CheckMouseIsOnGui() && !PauseMenu.isOpen)
 			{
-				if(ActiveWeaponManager.weaponIndex > 0 && !ActiveWeaponManager.guardMode)
+				if(ActiveWeaponManager.selectedWeapon != null && ActiveWeaponManager.weaponIndex > 0 && !ActiveWeaponManager.guardMode)
 				{
 					if(ActiveWeaponManager.selectedWeapon.GetWeaponClass() == WeaponClasses.Gun || ActiveWeaponManager.selectedWeapon.GetWeaponClass() == WeaponClasses.DefenseLaser)
 					{
@@ -602,11 +612,9 @@ namespace BahaTurret
 
 		void VesselChange(Vessel v)
 		{
-			if(v.isActiveVessel)
-			{
-				GetWeaponManager();
-				BDArmorySettings.Instance.UpdateCursorState();
-			}
+		  if (!v.isActiveVessel) return;
+		  GetWeaponManager();
+		  BDArmorySettings.Instance.UpdateCursorState();
 		}
 		
 		void GetWeaponManager()
@@ -667,7 +675,7 @@ namespace BahaTurret
 			{
 				if(settingsGuiEnabled)
 				{
-					settingsRect = GUI.Window(129419, settingsRect, SettingsGUI, GUIContent.none);
+					WindowRectSettings = GUI.Window(129419, WindowRectSettings, SettingsGUI, GUIContent.none);
 				}
 
 
@@ -685,12 +693,12 @@ namespace BahaTurret
 
 				if(toolbarGuiEnabled && HighLogic.LoadedSceneIsFlight)
 				{
-					toolbarWindowRect = GUI.Window(321, toolbarWindowRect, ToolbarGUI, "BDA Weapon Manager", HighLogic.Skin.window);
-					BDGUIUtils.UseMouseEventInRect(toolbarWindowRect);
+					WindowRectToolbar = GUI.Window(321, WindowRectToolbar, ToolbarGUI, "BDA Weapon Manager", HighLogic.Skin.window);
+					BDGUIUtils.UseMouseEventInRect(WindowRectToolbar);
 					if(showGPSWindow && ActiveWeaponManager)
 					{
 						//gpsWindowRect = GUI.Window(424333, gpsWindowRect, GPSWindow, "", GUI.skin.box);
-						BDGUIUtils.UseMouseEventInRect(gpsWindowRect);
+						BDGUIUtils.UseMouseEventInRect(WindowRectGps);
 						foreach(var coordinate in BDATargetManager.GPSTargets[BDATargetManager.BoolToTeam(ActiveWeaponManager.team)])
 						{
 							BDGUIUtils.DrawTextureOnWorldPos(coordinate.worldPos, BDArmorySettings.Instance.greenDotTexture, new Vector2(8,8), 0);
@@ -896,7 +904,7 @@ namespace BahaTurret
 						else
 						{
 							label = "None";
-							subLabel = string.Empty;
+							subLabel = String.Empty;
 						}
 						Rect weaponButtonRect = new Rect(leftIndent, (weaponLines * entryHeight), weaponListGroupRect.width - (2*leftIndent), entryHeight);
 
@@ -1118,10 +1126,10 @@ namespace BahaTurret
 				if(showGPSWindow && !toolMinimized)
 				{
 					line += 0.25f;
-					GUI.BeginGroup(new Rect(5, contentTop + (line * entryHeight), toolWindowWidth, gpsWindowRect.height));
+					GUI.BeginGroup(new Rect(5, contentTop + (line * entryHeight), toolWindowWidth, WindowRectGps.height));
 					GPSWindow();
 					GUI.EndGroup();
-					gpsLines = gpsWindowRect.height / entryHeight;
+					gpsLines = WindowRectGps.height / entryHeight;
 				}
 				gpsHeight = Mathf.Lerp(gpsHeight, gpsLines, 0.15f);
 				line += gpsHeight;
@@ -1137,7 +1145,7 @@ namespace BahaTurret
 			
 			
 			toolWindowHeight = Mathf.Lerp(toolWindowHeight, contentTop + (line*entryHeight) + 5, 1);
-			toolbarWindowRect.height = toolWindowHeight;// = new Rect(toolbarWindowRect.position.x, toolbarWindowRect.position.y, toolWindowWidth, toolWindowHeight);
+			WindowRectToolbar.height = toolWindowHeight;// = new Rect(toolbarWindowRect.position.x, toolbarWindowRect.position.y, toolWindowWidth, toolWindowHeight);
 		}
 
 		bool validGPSName = true;
@@ -1145,9 +1153,9 @@ namespace BahaTurret
 		//GPS window
 		void GPSWindow()
 		{
-			GUI.Box(gpsWindowRect, GUIContent.none, HighLogic.Skin.box);
+			GUI.Box(WindowRectGps, GUIContent.none, HighLogic.Skin.box);
 			gpsEntryCount = 0;
-			Rect listRect = new Rect(gpsBorder, gpsBorder, gpsWindowRect.width - (2 * gpsBorder), gpsWindowRect.height - (2 * gpsBorder));
+			Rect listRect = new Rect(gpsBorder, gpsBorder, WindowRectGps.width - (2 * gpsBorder), WindowRectGps.height - (2 * gpsBorder));
 			GUI.BeginGroup(listRect);
 			string targetLabel = "GPS Target: "+ActiveWeaponManager.designatedGPSInfo.name;
 			GUI.Label(new Rect(0, 0, listRect.width, gpsEntryHeight), targetLabel, kspTitleLabel);
@@ -1243,7 +1251,7 @@ namespace BahaTurret
 
 			//gpsWindowRect.x = toolbarWindowRect.x;
 			//gpsWindowRect.y = toolbarWindowRect.y + toolbarWindowRect.height;
-			gpsWindowRect.height = (2*gpsBorder) + (gpsEntryCount * gpsEntryHeight);
+			WindowRectGps.height = (2*gpsBorder) + (gpsEntryCount * gpsEntryHeight);
 		}
 
 
@@ -1272,7 +1280,7 @@ namespace BahaTurret
 		float settingsTop;
 		float settingsLineHeight;
 		float settingsMargin;
-		Rect settingsRect;
+
 		bool editKeys = false;
 		void SetupSettingsSize()
 		{
@@ -1282,7 +1290,7 @@ namespace BahaTurret
 			settingsTop = 100;
 			settingsLineHeight = 22;
 			settingsMargin = 18;
-			settingsRect = new Rect(settingsLeft, settingsTop, settingsWidth, settingsHeight);
+			WindowRectSettings = new Rect(settingsLeft, settingsTop, 420, 480);
 		}
 
 		void SettingsGUI(int windowID)
@@ -1361,7 +1369,7 @@ namespace BahaTurret
 			GUI.Label(SLeftRect(line), "Warning: Risky if set high", centerLabel);
 			if(GUI.Button(SRightRect(line), "Apply Phys Distance"))
 			{
-				float physRangeSetting = float.Parse(physicsRangeGui);
+				float physRangeSetting = Single.Parse(physicsRangeGui);
 				PHYSICS_RANGE = (physRangeSetting>=2500 ? Mathf.Clamp(physRangeSetting, 2500, 100000) : 0);
 				physicsRangeGui = PHYSICS_RANGE.ToString();
 				ApplyPhysRange();
@@ -1379,7 +1387,7 @@ namespace BahaTurret
 					compDistGui = GUI.TextField(SRightRect(line), compDistGui);
 					GUI.Label(SLeftRect(line), "Competition Distance");
 					float cDist;
-					if(float.TryParse(compDistGui, out cDist))
+					if(Single.TryParse(compDistGui, out cDist))
 					{
 						competitionDist = cDist;
 					}
@@ -1421,8 +1429,8 @@ namespace BahaTurret
 
 			line+=1.5f;
 			settingsHeight = (line * settingsLineHeight);
-			settingsRect.height = settingsHeight;
-			BDGUIUtils.UseMouseEventInRect(settingsRect);
+			WindowRectSettings.height = settingsHeight;
+			BDGUIUtils.UseMouseEventInRect(WindowRectSettings);
 		}
 
 		void InputSettings()
@@ -1453,8 +1461,8 @@ namespace BahaTurret
 
 			line+=1.5f;
 			settingsHeight = (line * settingsLineHeight);
-			settingsRect.height = settingsHeight;
-			BDGUIUtils.UseMouseEventInRect(settingsRect);
+			WindowRectSettings.height = settingsHeight;
+			BDGUIUtils.UseMouseEventInRect(WindowRectSettings);
 		}
 
 		void InputSettingsList(string prefix, ref int id, ref float line)
@@ -1475,7 +1483,7 @@ namespace BahaTurret
 		void InputSettingsLine(string fieldName, int id, ref float line)
 		{
 			GUI.Box(SLineRect(line), GUIContent.none);
-			string label = string.Empty;
+			string label = String.Empty;
 			if(BDKeyBinder.IsRecordingID(id))
 			{
 				string recordedInput;
@@ -1624,12 +1632,15 @@ namespace BahaTurret
 		{
 			GAME_UI_ENABLED = true;	
 		}
-		
 
-		
 
-		
-		void OnVesselGoOffRails(Vessel v)
+	  internal void OnDestroy()
+	  {
+      if (HighLogic.LoadedSceneIsFlight) BDAWindowSettingsField.Save();
+	  }
+
+
+	  void OnVesselGoOffRails(Vessel v)
 		{
 			if(v.Landed && BDArmorySettings.DRAW_DEBUG_LABELS)
 			{
@@ -1644,7 +1655,49 @@ namespace BahaTurret
 			SeismicChargeFX.originalMusicVolume = GameSettings.MUSIC_VOLUME;
 			SeismicChargeFX.originalAmbienceVolume = GameSettings.AMBIENCE_VOLUME;	
 		}
-		
+    public static object ParseValue(Type type, string value)
+    {
+      if (type == typeof(string))
+      {
+        return value;
+      }
+
+      if (type == typeof(bool))
+      {
+        return Boolean.Parse(value);
+      }
+      else if (type.IsEnum)
+      {
+        return Enum.Parse(type, value);
+      }
+      else if (type == typeof(float))
+      {
+        return Single.Parse(value);
+      }
+      else if (type == typeof(Single))
+      {
+        return Single.Parse(value);
+      }
+      else if (type == typeof(Rect))
+      {
+        string[] strings = value.Split(',');
+        int xVal = Int32.Parse(strings[0].Split(':')[1].Split('.')[0]);
+        int yVal = Int32.Parse(strings[1].Split(':')[1].Split('.')[0]);
+        int wVal = Int32.Parse(strings[2].Split(':')[1].Split('.')[0]);
+        int hVal = Int32.Parse(strings[3].Split(':')[1].Split('.')[0]);
+        Rect rectVal = new Rect
+        {
+          x = xVal,
+          y = yVal,
+          width = wVal,
+          height = hVal
+        };
+        return rectVal;
+      }
+      Debug.LogError("BDAPersistantSettingsField to parse settings field of type " + type.ToString() + " and value " + value);
+
+      return null;
+    }
 	}
 }
 

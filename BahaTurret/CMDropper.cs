@@ -127,7 +127,7 @@ namespace BahaTurret
 		
 		PartResource GetCMResource()
 		{
-			foreach(var res in part.Resources.list)
+			foreach(var res in part.Resources)
 			{
 				if(res.resourceName == resourceName) return res;	
 			}
@@ -179,45 +179,41 @@ namespace BahaTurret
 		void DropFlare()
 		{
 			PartResource cmResource = GetCMResource();
-			if(cmResource && cmResource.amount >= 1)
-			{
-				cmResource.amount--;
-				audioSource.pitch = UnityEngine.Random.Range(0.9f, 1.1f);
-				audioSource.PlayOneShot(cmSound);
+		  if (cmResource == null || !(cmResource.amount >= 1)) return;
+		  cmResource.amount--;
+		  audioSource.pitch = UnityEngine.Random.Range(0.9f, 1.1f);
+		  audioSource.PlayOneShot(cmSound);
 
-				GameObject cm = flarePool.GetPooledObject();
-				cm.transform.position = transform.position;
-				CMFlare cmf = cm.GetComponent<CMFlare>();
-				cmf.startVelocity = part.rb.velocity + (ejectVelocity*transform.up) + (UnityEngine.Random.Range(-3f,3f) * transform.forward) + (UnityEngine.Random.Range(-3f,3f) * transform.right);
-				cmf.sourceVessel = vessel;
+		  GameObject cm = flarePool.GetPooledObject();
+		  cm.transform.position = transform.position;
+		  CMFlare cmf = cm.GetComponent<CMFlare>();
+		  cmf.startVelocity = part.rb.velocity + (ejectVelocity*transform.up) + (UnityEngine.Random.Range(-3f,3f) * transform.forward) + (UnityEngine.Random.Range(-3f,3f) * transform.right);
+		  cmf.sourceVessel = vessel;
 
-				cm.SetActive(true);
+		  cm.SetActive(true);
 
-				FireParticleEffects();
-			}
+		  FireParticleEffects();
 		}
 
 		void DropChaff()
 		{
 			PartResource cmResource = GetCMResource();
-			if(cmResource && cmResource.amount >= 1)
-			{
-				cmResource.amount--;
-				audioSource.pitch = UnityEngine.Random.Range(0.9f, 1.1f);
-				audioSource.PlayOneShot(cmSound);
+		  if (cmResource == null || !(cmResource.amount >= 1)) return;
+		  cmResource.amount--;
+		  audioSource.pitch = UnityEngine.Random.Range(0.9f, 1.1f);
+		  audioSource.PlayOneShot(cmSound);
 
-				if(!vci)
-				{
-					vci = vessel.gameObject.AddComponent<VesselChaffInfo>();
-				}
-				vci.Chaff();
+		  if(!vci)
+		  {
+		    vci = vessel.gameObject.AddComponent<VesselChaffInfo>();
+		  }
+		  vci.Chaff();
 
-				GameObject cm = chaffPool.GetPooledObject();
-				CMChaff chaff = cm.GetComponent<CMChaff>();
-				chaff.Emit(ejectTransform.position, ejectVelocity * ejectTransform.forward);
+		  GameObject cm = chaffPool.GetPooledObject();
+		  CMChaff chaff = cm.GetComponent<CMChaff>();
+		  chaff.Emit(ejectTransform.position, ejectVelocity * ejectTransform.forward);
 
-				FireParticleEffects();
-			}
+		  FireParticleEffects();
 		}
 
 		void PopSmoke()

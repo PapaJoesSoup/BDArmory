@@ -756,7 +756,7 @@ namespace BahaTurret
 		
 		public PartResource GetRocketResource()
 		{
-			foreach(var res in part.Resources.list)
+			foreach(var res in part.Resources)
 			{
 				if(res.resourceName == rocketType) return res;	
 			}

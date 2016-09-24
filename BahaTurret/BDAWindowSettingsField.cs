@@ -5,9 +5,9 @@ using UnityEngine;
 namespace BahaTurret
 {
 	[AttributeUsage(AttributeTargets.Field)]
-	public class BDAPersistantSettingsField : Attribute
+	public class BDAWindowSettingsField : Attribute
 	{
-		public BDAPersistantSettingsField ()
+		public BDAWindowSettingsField()
 		{
 		}
 
@@ -15,16 +15,16 @@ namespace BahaTurret
 		{
 			ConfigNode fileNode = ConfigNode.Load(BDArmorySettings.settingsConfigURL);
 
-			if(!fileNode.HasNode("BDASettings"))
+			if(!fileNode.HasNode("BDAWindows"))
 			{
-				fileNode.AddNode("BDASettings");
+				fileNode.AddNode("BDAWindows");
 			}
 
-			ConfigNode settings = fileNode.GetNode("BDASettings");
+			ConfigNode settings = fileNode.GetNode("BDAWindows");
 
 			foreach(FieldInfo field in typeof(BDArmorySettings).GetFields())
 			{
-				if(!field.IsDefined(typeof(BDAPersistantSettingsField), false)) continue;
+				if(!field.IsDefined(typeof(BDAWindowSettingsField), false)) continue;
 
 				settings.SetValue(field.Name, field.GetValue(null).ToString(), true);
 			}
@@ -35,15 +35,15 @@ namespace BahaTurret
 		public static void Load()
 		{
 			ConfigNode fileNode = ConfigNode.Load(BDArmorySettings.settingsConfigURL);
-			if(!fileNode.HasNode("BDASettings")) return;
+			if(!fileNode.HasNode("BDAWindows")) return;
 
-			ConfigNode settings = fileNode.GetNode("BDASettings");
+			ConfigNode settings = fileNode.GetNode("BDAWindows");
 
 			foreach(FieldInfo field in typeof(BDArmorySettings).GetFields())
 			{
-				if(!field.IsDefined(typeof(BDAPersistantSettingsField), false)) continue;
-
+				if(!field.IsDefined(typeof(BDAWindowSettingsField), false)) continue;
 			  if (!settings.HasValue(field.Name)) continue;
+
 			  object parsedValue = BDArmorySettings.ParseValue(field.FieldType, settings.GetValue(field.Name));
 			  if(parsedValue != null)
 			  {

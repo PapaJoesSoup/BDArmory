@@ -266,9 +266,10 @@ namespace BahaTurret
 		{
 			
 			SetupTweakables();
-			
-			
-			foreach(var pe in part.FindModelComponents<KSPParticleEmitter>())
+      // Git Issue #39  StageIcon object is missing due to changes in KSP 1.1.  added create to replace missing icon.
+      if (part.stackIcon.StageIcon == null) part.stackIcon.CreateIcon();
+
+      foreach (var pe in part.FindModelComponents<KSPParticleEmitter>())
 			{
 				if(pe.useWorldSpace)	
 				{

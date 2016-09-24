@@ -66,7 +66,7 @@ namespace BahaTurret
 
 
 			if(topGui.Contains(inverseMousePos)) return true;
-			if(BDArmorySettings.toolbarGuiEnabled && BDArmorySettings.Instance.toolbarWindowRect.Contains(inverseMousePos)) return true;
+			if(BDArmorySettings.toolbarGuiEnabled && BDArmorySettings.WindowRectToolbar.Contains(inverseMousePos)) return true;
 			if(ModuleTargetingCamera.windowIsOpen && ModuleTargetingCamera.camWindowRect.Contains(inverseMousePos)) return true;
 			if(BDArmorySettings.Instance.ActiveWeaponManager)
 			{
@@ -77,7 +77,7 @@ namespace BahaTurret
 					if(VesselRadarData.radarWindowRect.Contains(inverseMousePos)) return true;
 					if(wm.vesselRadarData.linkWindowOpen && wm.vesselRadarData.linkWindowRect.Contains(inverseMousePos)) return true;
 				}
-				if(wm.rwr && wm.rwr.rwrEnabled && RadarWarningReceiver.windowRect.Contains(inverseMousePos)) return true;
+				if(wm.rwr && wm.rwr.rwrEnabled && BDArmorySettings.WindowRectRwr.Contains(inverseMousePos)) return true;
 				if(wm.wingCommander && wm.wingCommander.showGUI)
 				{
 					if(wm.wingCommander.guiWindowRect.Contains(inverseMousePos)) return true;

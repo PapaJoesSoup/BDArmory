@@ -73,12 +73,10 @@ namespace BahaTurret
 			for(int i = 0; i < fields.Length; i++)
 			{
 				string fieldName = fields[i].Name;
-				if(cfg.HasValue(fieldName))
-				{
-					BDInputInfo orig = (BDInputInfo)fields[i].GetValue(null);
-					BDInputInfo loaded = new BDInputInfo(cfg.GetValue(fieldName), orig.description);
-					fields[i].SetValue(null, loaded);
-				}
+			  if (!cfg.HasValue(fieldName)) continue;
+			  BDInputInfo orig = (BDInputInfo)fields[i].GetValue(null);
+			  BDInputInfo loaded = new BDInputInfo(cfg.GetValue(fieldName), orig.description);
+			  fields[i].SetValue(null, loaded);
 			}
 
 			fileNode.Save(BDArmorySettings.settingsConfigURL);

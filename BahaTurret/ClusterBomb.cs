@@ -145,7 +145,7 @@ namespace BahaTurret
 		
 		bool AltitudeTrigger()
 		{
-			double asl = vessel.mainBody.GetAltitude(vessel.findWorldCenterOfMass());
+			double asl = vessel.mainBody.GetAltitude(vessel.CoM);
 			double radarAlt = asl - vessel.terrainAltitude;
 			
 			return (radarAlt < deployAltitude || asl < deployAltitude) && vessel.verticalSpeed < 0;
