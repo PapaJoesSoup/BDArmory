@@ -633,7 +633,7 @@ namespace BahaTurret
 
 			for(int i = 0; i < missileCount; i++)
 			{
-				if(missileChildren[i].part.name == ml.part.name)
+				if((missileChildren[i]) && missileChildren[i].part.name == ml.part.name)
 				{
 					return true;
 				}
