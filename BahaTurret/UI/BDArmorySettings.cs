@@ -955,6 +955,17 @@ namespace BahaTurret
                         ActiveWeaponManager.targetScanInterval.ToString(), leftLabel);
                     guardLines++;
 
+                    string burstLabel = "Burst Length";
+                    GUI.Label(new Rect(leftIndent, (guardLines * entryHeight), 85, entryHeight), burstLabel, leftLabel);
+                    ActiveWeaponManager.fireBurstLength =
+                        GUI.HorizontalSlider(
+                            new Rect(leftIndent + (90), (guardLines * entryHeight), contentWidth - 90 - 38, entryHeight),
+                            ActiveWeaponManager.fireBurstLength, 0, 60);
+                    ActiveWeaponManager.fireBurstLength = Mathf.Round(ActiveWeaponManager.fireBurstLength*2)/2;
+                    GUI.Label(new Rect(leftIndent + (contentWidth - 35), (guardLines * entryHeight), 35, entryHeight),
+                        ActiveWeaponManager.fireBurstLength.ToString(), leftLabel);
+                    guardLines++;
+
                     GUI.Label(new Rect(leftIndent, (guardLines*entryHeight), 85, entryHeight), "Field of View",
                         leftLabel);
                     float guardAngle = ActiveWeaponManager.guardAngle;

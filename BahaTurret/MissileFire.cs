@@ -391,6 +391,11 @@ namespace BahaTurret
          UI_FloatRange(minValue = 1f, maxValue = 60f, stepIncrement = 1f, scene = UI_Scene.All)] public float
             targetScanInterval = 3;
 
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Firing Burst Length"),
+         UI_FloatRange(minValue = 0f, maxValue = 60f, stepIncrement = 0.5f, scene = UI_Scene.All)]
+        public float
+            fireBurstLength = 0;
+
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Field of View"),
          UI_FloatRange(minValue = 10f, maxValue = 360f, stepIncrement = 10f, scene = UI_Scene.All)] public float
             guardAngle = 360;
@@ -2719,7 +2724,8 @@ namespace BahaTurret
                         }
                         weapon.legacyGuardTarget = guardTarget;
                         weapon.autoFireStartTime = Time.time;
-                        weapon.autoFireDuration = targetScanInterval/2;
+                        //weapon.autoFireDuration = targetScanInterval / 2;
+                        weapon.autoFireDuration = (fireBurstLength < 1) ? targetScanInterval / 2 : fireBurstLength;
                         weapon.autoRippleRate = rippleFire ? rippleRPM : 0;
                     }
                 }
@@ -2732,7 +2738,8 @@ namespace BahaTurret
                     {
                         weapon.legacyTargetVessel = guardTarget;
                         weapon.autoFireTimer = Time.time;
-                        weapon.autoFireLength = 3*targetScanInterval/4;
+                        //weapon.autoFireLength = 3 * targetScanInterval / 4;
+                        weapon.autoFireLength = (fireBurstLength < 1) ? targetScanInterval / 2 : fireBurstLength;
                     }
                 }
             }
