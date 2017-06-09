@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Smooth.Slinq.Test;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -13,8 +14,14 @@ namespace BahaTurret
         #region  Declarations
 
         //weapons
-        private List<IBDWeapon> weaponTypes = new List<IBDWeapon>();
+        private const int LIST_CAPACITY = 100;
+        private List<IBDWeapon> weaponTypes = new List<IBDWeapon>(LIST_CAPACITY);
         public IBDWeapon[] weaponArray;
+
+        // extension for feature_engagementenvelope: specific lists by weapon engagement type
+        private List<IBDWeapon> weaponTypesAir = new List<IBDWeapon>(LIST_CAPACITY);
+        private List<IBDWeapon> weaponTypesMissile = new List<IBDWeapon>(LIST_CAPACITY);
+        private List<IBDWeapon> weaponTypesGround = new List<IBDWeapon>(LIST_CAPACITY);
 
         [KSPField(guiActiveEditor = false, isPersistant = true, guiActive = false)] public int weaponIndex = 0;
 
@@ -367,6 +374,11 @@ namespace BahaTurret
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Firing Interval"),
          UI_FloatRange(minValue = 1f, maxValue = 60f, stepIncrement = 1f, scene = UI_Scene.All)] public float
             targetScanInterval = 3;
+
+        // extension for feature_engagementenvelope: burst length for guns
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Firing Burst Length"),
+         UI_FloatRange(minValue = 0f, maxValue = 60f, stepIncrement = 0.5f, scene = UI_Scene.All)]
+        public float fireBurstLength = 0;
 
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Field of View"),
          UI_FloatRange(minValue = 10f, maxValue = 360f, stepIncrement = 10f, scene = UI_Scene.All)] public float
@@ -2234,6 +2246,10 @@ namespace BahaTurret
         public void UpdateList()
         {
             weaponTypes.Clear();
+            // extension for feature_engagementenvelope: also clear engagement specific weapon lists
+            weaponTypesAir.Clear();
+            weaponTypesMissile.Clear();
+            weaponTypesGround.Clear();
 
             foreach (IBDWeapon weapon in vessel.FindPartModulesImplementing<IBDWeapon>())
             {
@@ -2244,7 +2260,7 @@ namespace BahaTurret
                     if (weap.GetShortName() == weaponName)
                     {
                         alreadyAdded = true;
-                        break;
+                        //break;
                     }
                 }
 
@@ -2259,13 +2275,27 @@ namespace BahaTurret
                 {
                     weaponTypes.Add(weapon);
                 }
+
+                var engageableWeapon = weapon as EngageableWeapon;
+
+                if (engageableWeapon != null)
+                {
+                    if (engageableWeapon.GetEngageAirTargets()) weaponTypesAir.Add(weapon);
+                    if (engageableWeapon.GetEngageMissileTargets()) weaponTypesMissile.Add(weapon);
+                    if (engageableWeapon.GetEngageGroundTargets()) weaponTypesGround.Add(weapon);
+                }
+                else
+                {
+                    weaponTypesAir.Add(weapon);
+                    weaponTypesMissile.Add(weapon);
+                    weaponTypesGround.Add(weapon);
+                }  
             }
 
             //weaponTypes.Sort();
             weaponTypes = weaponTypes.OrderBy(w => w.GetShortName()).ToList();
 
-            List<IBDWeapon> tempList = new List<IBDWeapon>();
-            tempList.Add(null);
+            List<IBDWeapon> tempList = new List<IBDWeapon> {null};
             tempList.AddRange(weaponTypes);
 
             weaponArray = tempList.ToArray();
@@ -2275,7 +2305,12 @@ namespace BahaTurret
                 hasSingleFired = true;
                 triggerTimer = 0;
             }
+            PrepareWeapons();
+        }
 
+        // EXTRACTED METHOD FROM UpdateList()
+        private void PrepareWeapons()
+        {
             weaponIndex = Mathf.Clamp(weaponIndex, 0, weaponArray.Length - 1);
 
             if (selectedWeapon == null || selectedWeapon.GetPart() == null || selectedWeapon.GetPart().vessel != vessel ||
@@ -2747,15 +2782,21 @@ namespace BahaTurret
                weaponArray[weaponIndex].GetWeaponClass() == WeaponClasses.Missile)
             {
                 MissileBase firstMl = null;
+
                 foreach (var ml in vessel.FindPartModulesImplementing<MissileBase>())
                 {
-                    if (ml is MissileLauncher)
+                    var launcher = ml as MissileLauncher;
+                    if (launcher != null)
                     {
-                        if (ml.part.name != weaponArray[weaponIndex].GetPart().name) continue;
+                        if (launcher.part.name != weaponArray[weaponIndex].GetPart()?.name) continue;
                     }
-                    else if (ml is BDModularGuidance)
-                    { //We have set of parts not only a part
-                        if (ml.GetShortName() != weaponArray[weaponIndex].GetShortName()) continue;
+                    else
+                    {
+                        var guidance = ml as BDModularGuidance;
+                        if (guidance != null)
+                        { //We have set of parts not only a part
+                            if (guidance.GetShortName() != weaponArray[weaponIndex]?.GetShortName()) continue;
+                        }
                     }
                     if (firstMl == null) firstMl = ml;
 
@@ -2915,17 +2956,34 @@ namespace BahaTurret
                         {
                             Part p = hits[h].collider.GetComponentInParent<Part>();
 
-                            if ((p != null && p != ml.part) || p == null) return false;
+                            if ((p != null && p != ml.part) || p == null)
+                            {
+                                if (BDArmorySettings.DRAW_DEBUG_LABELS)
+                                    Debug.Log("[BDArmory]: RAYCAST HIT, clearance is FALSE! part=" + p?.name + ", collider=" + p?.collider.ToString());
+                                return false;
+                            }
                         }
                     }
 
                     return true;
                 }
+
+
                 //forward check for no-drop missiles
-                if (Physics.Raycast(new Ray(ml.MissileReferenceTransform.position, ml.GetForwardTransform()), 50, 557057))
+                RaycastHit[] hitparts = Physics.RaycastAll(new Ray(ml.MissileReferenceTransform.position, ml.GetForwardTransform()), 50, 557057);
+                for (int h = 0; h < hitparts.Length; h++)
                 {
-                    return false;
+                    Part p = hitparts[h].collider.GetComponentInParent<Part>();
+                    if ((p != null && p != ml.part) || p == null)
+                    {
+
+                        if (BDArmorySettings.DRAW_DEBUG_LABELS)
+                            Debug.Log("[BDArmory]: RAYCAST HIT, clearance is FALSE! part=" + p?.name + ", collider=" + p?.collider.ToString());
+                        return false;
+                    }
                 }
+
+
             }
 
             return true;
@@ -2979,251 +3037,6 @@ namespace BahaTurret
                 }
             }
         }
-
-        bool SwitchToAirMissile()
-        {
-            CycleWeapon(0); //go to start of array
-
-            if (BDArmorySettings.DRAW_DEBUG_LABELS)
-            {
-                Debug.Log("[BDArmory]:" + vessel.vesselName + "Checking air missiles");
-            }
-
-            int selectedIndex = 0;
-            float bestRangeDiff = float.MaxValue;
-            float targetDistance = Vector3.Distance(guardTarget.transform.position, vessel.transform.position);
-
-            if (weaponArray.Length <= 1)
-            {
-                if (BDArmorySettings.DRAW_DEBUG_LABELS)
-                {
-                    Debug.Log("[BDArmory]:  - no weapons");
-                }
-                return false;
-            }
-
-            for (int i = 1; i < weaponArray.Length; i++)
-            {
-                CycleWeapon(i);
-
-                if (selectedWeapon.GetWeaponClass() == WeaponClasses.Missile)
-                {
-                    foreach (var ml in selectedWeapon.GetPart().FindModulesImplementing<MissileBase>())
-                    {
-                        if (ml.GuidanceMode == MissileBase.GuidanceModes.AAMLead || ml.GuidanceMode == MissileBase.GuidanceModes.AAMPure)
-                        {
-                            MissileLaunchParams dlz = MissileLaunchParams.GetDynamicLaunchParams(ml, guardTarget.srf_velocity, guardTarget.transform.position);
-                            if (vessel.srfSpeed > ml.minLaunchSpeed && targetDistance < dlz.maxLaunchRange && targetDistance > dlz.minLaunchRange)
-                            {
-                                float rangeDiff = Mathf.Abs(targetDistance - dlz.rangeTr);
-                                if (rangeDiff < bestRangeDiff)
-                                {
-                                    bestRangeDiff = rangeDiff;
-                                    selectedIndex = i;
-                                }
-                            }
-                            else
-                            {
-                                if (BDArmorySettings.DRAW_DEBUG_LABELS)
-                                {
-                                    Debug.Log("[BDArmory]:  - " + vessel.vesselName + " : " + ml.GetShortName() + " failed DLZ test.");
-                                }
-                            }
-                            //break;
-                            //return true;
-                        }
-                        else
-                        {
-                            if (BDArmorySettings.DRAW_DEBUG_LABELS)
-                            {
-                                Debug.Log("[BDArmory]:  - " + vessel.vesselName + " : " + ml.GetShortName() + " not an AAM.");
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    if (BDArmorySettings.DRAW_DEBUG_LABELS)
-                    {
-                        Debug.Log("[BDArmory]:  - " + vessel.vesselName + " : " + selectedWeapon.GetShortName() + " not a missile.");
-                    }
-                }
-            }
-
-            /*
-			while(true)
-			{
-				CycleWeapon(true);
-				if(selectedWeapon == null) break;//return false;
-				if(selectedWeapon.GetWeaponClass() == WeaponClasses.Missile)
-				{
-					foreach(var ml in selectedWeapon.GetPart().FindModulesImplementing<MissileBase>())
-					{
-						if(ml.guidanceMode == MissileBase.GuidanceModes.AAMLead || ml.guidanceMode == MissileBase.GuidanceModes.AAMPure)
-						{
-							MissileLaunchParams dlz = MissileLaunchParams.GetDynamicLaunchParams(ml, guardTarget.srf_velocity, guardTarget.transform.position);
-							if(vessel.srfSpeed > ml.minLaunchSpeed && targetDistance < dlz.maxLaunchRange && targetDistance > dlz.minLaunchRange)
-							{
-								float rangeDiff = Mathf.Abs(targetDistance - dlz.rangeTr);
-								if(rangeDiff < bestRangeDiff)
-								{
-									bestRangeDiff = rangeDiff;
-									selectedIndex = weaponIndex;
-								}
-							}
-							else
-							{
-								if(BDArmorySettings.DRAW_DEBUG_LABELS)
-								{
-									Debug.Log(vessel.vesselName + " : " + ml.GetShortName() + " failed DLZ test.");
-								}
-							}
-							break;
-							//return true;
-						}
-						else
-						{
-							break;
-						}
-					}
-				}
-			}
-			*/
-
-            if (selectedIndex > 0)
-            {
-                CycleWeapon(selectedIndex);
-                if (BDArmorySettings.DRAW_DEBUG_LABELS)
-                {
-                    Debug.Log("[BDArmory]:  - " + vessel.vesselName + " : selecting " + selectedWeapon.GetShortName());
-                }
-                return true;
-            }
-            else
-            {
-                if (BDArmorySettings.DRAW_DEBUG_LABELS)
-                {
-                    Debug.Log("[BDArmory]:  - " + vessel.vesselName + " : no result.");
-                }
-
-                return false;
-            }
-        }
-
-        bool SwitchToGroundMissile()
-        {
-            CycleWeapon(0); //go to start of array
-            while (true)
-            {
-                CycleWeapon(true);
-                if (selectedWeapon == null) return false;
-                if (selectedWeapon.GetWeaponClass() == WeaponClasses.Missile)
-                {
-                    foreach (var ml in selectedWeapon.GetPart().FindModulesImplementing<MissileBase>())
-                    {
-                        if (ml.GuidanceMode == MissileBase.GuidanceModes.AGM
-                           || ml.GuidanceMode == MissileBase.GuidanceModes.BeamRiding
-                           || ml.GuidanceMode == MissileBase.GuidanceModes.STS
-                           || ml.GuidanceMode == MissileBase.GuidanceModes.Cruise
-                           || ml.GuidanceMode == MissileBase.GuidanceModes.AGMBallistic)
-                        {
-                            if (!BDArmorySettings.ALLOW_LEGACY_TARGETING && ml.TargetingMode == MissileBase.TargetingModes.AntiRad)
-                            {
-                                break;
-                            }
-
-                            if (vessel.srfSpeed < ml.minLaunchSpeed) break;
-
-                            return true;
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        bool SwitchToBomb()
-        {
-            if (vessel.LandedOrSplashed) return false;
-
-            for (int i = 1; i < weaponArray.Length; i++)
-            {
-                if (weaponArray[i].GetWeaponClass() == WeaponClasses.Bomb)
-                {
-                    if (weaponArray[i].GetPart().FindModuleImplementing<MissileBase>().TargetingMode == MissileBase.TargetingModes.Gps)
-                    {
-                        if (targetingPods.Count == 0)
-                        {
-                            continue;
-                        }
-                    }
-
-                    CycleWeapon(i);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        bool SwitchToLaser()
-        {
-            if (selectedWeapon == null || selectedWeapon.GetWeaponClass() != WeaponClasses.DefenseLaser)
-            {
-                CycleWeapon(0); //go to start of array
-                while (true)
-                {
-                    CycleWeapon(true);
-                    if (selectedWeapon == null) return false;
-                    if (selectedWeapon.GetWeaponClass() == WeaponClasses.DefenseLaser) return true;
-                }
-            }
-            else return true;
-        }
-
-        bool SwitchToTurret(float distance)
-        {
-            UpdateList();
-
-            int turretStatus = CheckTurret(distance);
-            if (turretStatus != 1)
-            {
-                CycleWeapon(0); //go to start of array
-                while (true)
-                {
-                    CycleWeapon(true);
-                    if (selectedWeapon == null)
-                    {
-                        return false;
-                    }
-                    if (CheckTurret(distance) == 1 && selectedWeapon.GetWeaponClass() != WeaponClasses.DefenseLaser)
-                    {
-                        return true;
-                    }
-                }
-            }
-            else return true;
-        }
-
-        /*
-     bool SwitchToRocketTurret(float distance)
-     {
-         CycleWeapon(0);
-         while(true)
-         {
-             CycleWeapon(true);
-             if(selectedWeapon == null)
-             {
-                 return false;
-             }
-             if(selectedWeapon.GetWeaponClass() == WeaponClasses.Rocket && CheckTurret(distance) == 1)
-             {
-                 return true;
-             }
-         }
-     }
-     */
-
         #endregion
 
         #region Targeting
@@ -3238,7 +3051,7 @@ namespace BahaTurret
             {
                 targetsTried.Add(overrideTarget);
                 SetTarget(overrideTarget);
-                if (SmartPickWeapon(overrideTarget, gunRange))
+                if (SmartPickWeapon_EngagementEnvelope(overrideTarget))
                 {
                     if (BDArmorySettings.DRAW_DEBUG_LABELS)
                     {
@@ -3265,7 +3078,7 @@ namespace BahaTurret
                     {
                         targetsTried.Add(potentialAirTarget);
                         SetTarget(potentialAirTarget);
-                        if (SmartPickWeapon(potentialAirTarget, gunRange))
+                        if (SmartPickWeapon_EngagementEnvelope(potentialAirTarget))
                         {
                             if (BDArmorySettings.DRAW_DEBUG_LABELS)
                             {
@@ -3282,7 +3095,7 @@ namespace BahaTurret
                     {
                         targetsTried.Add(potentialAirTarget);
                         SetTarget(potentialAirTarget);
-                        if (SmartPickWeapon(potentialAirTarget, gunRange))
+                        if (SmartPickWeapon_EngagementEnvelope(potentialAirTarget))
                         {
                             if (BDArmorySettings.DRAW_DEBUG_LABELS)
                             {
@@ -3302,7 +3115,7 @@ namespace BahaTurret
             {
                 targetsTried.Add(potentialTarget);
                 SetTarget(potentialTarget);
-                if (SmartPickWeapon(potentialTarget, gunRange))
+                if (SmartPickWeapon_EngagementEnvelope(potentialTarget))
                 {
                     if (BDArmorySettings.DRAW_DEBUG_LABELS)
                     {
@@ -3318,7 +3131,7 @@ namespace BahaTurret
             {
                 targetsTried.Add(potentialTarget);
                 SetTarget(potentialTarget);
-                if (SmartPickWeapon(potentialTarget, gunRange))
+                if (SmartPickWeapon_EngagementEnvelope(potentialTarget))
                 {
                     if (BDArmorySettings.DRAW_DEBUG_LABELS)
                     {
@@ -3352,7 +3165,7 @@ namespace BahaTurret
                             return;
                         }
                     }
-                    if (SmartPickWeapon(potentialTarget, gunRange))
+                    if (SmartPickWeapon_EngagementEnvelope(potentialTarget))
                     {
                         if (BDArmorySettings.DRAW_DEBUG_LABELS)
                         {
@@ -3381,7 +3194,7 @@ namespace BahaTurret
                             return;
                         }
                     }
-                    if (SmartPickWeapon(potentialTarget, gunRange))
+                    if (SmartPickWeapon_EngagementEnvelope(potentialTarget))
                     {
                         if (BDArmorySettings.DRAW_DEBUG_LABELS)
                         {
@@ -3415,7 +3228,7 @@ namespace BahaTurret
             {
                 targetsTried.Add(potentialTarget);
                 SetTarget(potentialTarget);
-                if (SmartPickWeapon(potentialTarget, gunRange))
+                if (SmartPickWeapon_EngagementEnvelope(potentialTarget))
                 {
                     if (BDArmorySettings.DRAW_DEBUG_LABELS)
                     {
@@ -3431,7 +3244,7 @@ namespace BahaTurret
             {
                 targetsTried.Add(potentialTarget);
                 SetTarget(potentialTarget);
-                if (SmartPickWeapon(potentialTarget, gunRange))
+                if (SmartPickWeapon_EngagementEnvelope(potentialTarget))
                 {
                     if (BDArmorySettings.DRAW_DEBUG_LABELS)
                     {
@@ -3458,7 +3271,7 @@ namespace BahaTurret
             foreach (TargetInfo finalTarget in finalTargets)
             {
                 SetTarget(finalTarget);
-                if (SmartPickWeapon(finalTarget, gunRange))
+                if (SmartPickWeapon_EngagementEnvelope(finalTarget))
                 {
                     if (BDArmorySettings.DRAW_DEBUG_LABELS)
                     {
@@ -3489,6 +3302,9 @@ namespace BahaTurret
             Debug.Log("[BDArmory]: Unhandled target case.");
         }
 
+        // OLD method without engagement envelope -> new method see: SmartPickWeapon_EngageEnvelope
+        #region DEPRECATED
+        /*
         bool SmartPickWeapon(TargetInfo target, float turretRange)
         {
             if (!target) return false;
@@ -3592,6 +3408,393 @@ namespace BahaTurret
 
             return false;
         }
+        */
+        #endregion
+
+        // extension for feature_engagementenvelope: new smartpickweapon method
+        bool SmartPickWeapon_EngagementEnvelope(TargetInfo target)
+        {
+            // Part 1: Guard conditions (when not to pick a weapon)
+            // ------
+            if (!target)
+                return false;
+
+            if (pilotAI && pilotAI.pilotEnabled && vessel.LandedOrSplashed) // This must be changed once pilots for ground/ships etc exist!
+                return false;
+
+
+            // Part 2: check weapons against individual target types
+            // ------
+            float distance = Vector3.Distance(transform.position + vessel.srf_velocity, target.position + target.velocity);
+            IBDWeapon targetWeapon = null;
+            float targetWeaponRPM = 0;
+            float targetWeaponTDPS = 0;
+            float targetWeaponImpact = 0;
+
+            if (target.isMissile)
+            {
+                // iterate over weaponTypesMissile and pick suitable one based on engagementRange (and dynamic launch zone for missiles)
+                // Prioritize by:
+                // 1. Lasers
+                // 2. Guns
+                // 3. AA missiles
+                foreach (var item in weaponTypesMissile)
+                {
+
+                    // candidate, check engagement envelope
+                    if (CheckEngagementEnvelope(item, distance))
+                    {
+                        // weapon usable, if missile continue looking for lasers/guns, else take it
+                        var candidateClass = item.GetWeaponClass();
+
+                        if (candidateClass == WeaponClasses.DefenseLaser)
+                        {
+                            // TODO: compare lasers which one is better for AA
+                            targetWeapon = item;
+                            break; //always favour laser
+                        }
+
+                        if (candidateClass == WeaponClasses.Gun)
+                        {
+                            // For AAA, favour higher RPM
+                            var candidateRPM = ((ModuleWeapon)item).roundsPerMinute;
+
+                            if ((targetWeapon != null) && (targetWeaponRPM > candidateRPM))
+                                continue; //dont replace better guns (but do replace missiles)
+
+                            targetWeapon = item;
+                            targetWeaponRPM = candidateRPM;
+                        }
+
+                        if (candidateClass == WeaponClasses.Missile)
+                        {
+                            // TODO: for AA, favour higher thrust+turnDPS
+
+                            var mlauncher = item as MissileLauncher;
+                            var candidateTDPS = 0f;
+                        
+                            if (mlauncher != null)
+                            {
+                                candidateTDPS = mlauncher.thrust + mlauncher.maxTurnRateDPS;
+                            }
+                            else
+                            { //is modular missile
+                                var mm = item as BDModularGuidance;
+                                 candidateTDPS = 5000;                                                     
+                            }
+
+                            if ((targetWeapon != null) && ((targetWeapon.GetWeaponClass() == WeaponClasses.Gun) || (targetWeaponTDPS > candidateTDPS)))
+                                continue; //dont replace guns or better missiles
+
+                            targetWeapon = item;
+                            targetWeaponTDPS = candidateTDPS;
+                        }
+
+                    }
+
+                }
+
+            }
+
+            else if (!target.isLanded)
+            {
+                // iterate over weaponTypesAir and pick suitable one based on engagementRange (and dynamic launch zone for missiles)
+                // Prioritize by:
+                // 1. AA missiles, if range > gunRange
+                // 1. Lasers
+                // 2. Guns
+                // 
+                foreach (var item in weaponTypesAir)
+                {
+                    // candidate, check engagement envelope
+                    if (CheckEngagementEnvelope(item, distance))
+                    {
+                        // weapon usable, if missile continue looking for lasers/guns, else take it
+                        var candidateClass = item.GetWeaponClass();
+
+                        if (candidateClass == WeaponClasses.DefenseLaser)
+                        {
+                            // TODO: compare lasers which one is better for AA
+                            targetWeapon = item;
+                            if (distance <= gunRange)
+                                break;
+                        }
+
+                        if (candidateClass == WeaponClasses.Gun)
+                        {
+                            // For AAA, favour higher RPM
+                            var candidateRPM = ((ModuleWeapon)item).roundsPerMinute;
+
+                            if ((targetWeapon != null) && (targetWeaponRPM > candidateRPM))
+                                continue; //dont replace better guns (but do replace missiles)
+
+                            targetWeapon = item;
+                            targetWeaponRPM = candidateRPM;
+                        }
+
+                        if (candidateClass == WeaponClasses.Missile)
+                        {
+                            var mlauncher = item as MissileLauncher;
+                            var candidateTDPS = 0f;
+
+                            if (mlauncher != null)
+                            {
+                                candidateTDPS = mlauncher.thrust + mlauncher.maxTurnRateDPS;
+                            }
+                            else
+                            { //is modular missile
+                                var mm = item as BDModularGuidance;
+                                candidateTDPS = 5000;
+                            }
+
+                            if (targetWeapon == null)
+                            {
+                                targetWeapon = item;
+                                targetWeaponTDPS = candidateTDPS;
+                            }
+                            else if ((targetWeapon != null) && (distance > gunRange))
+                            {
+                                if ((targetWeapon != null) && ((targetWeapon.GetWeaponClass() == WeaponClasses.Gun) || (targetWeaponTDPS > candidateTDPS)))
+                                    continue; //dont replace guns or better missiles
+
+                                targetWeapon = item;
+                                targetWeaponTDPS = candidateTDPS;
+                            }
+                        }
+
+                    }
+
+                }
+
+            }
+
+            else if (target.isLanded)
+            {
+                // iterate over weaponTypesGround and pick suitable one based on engagementRange (and dynamic launch zone for missiles)
+                // Prioritize by:
+                // 1. ground attack missiles (cruise, gps, unguided) if target not moving
+                // 2. ground attack missiles (guided) if target is moving
+                // 3. Bombs / Rockets
+                // 4. Guns
+                foreach (var item in weaponTypesGround)
+                {
+                    // candidate, check engagement envelope
+                    if (CheckEngagementEnvelope(item, distance))
+                    {
+                        // weapon usable, if missile continue looking for lasers/guns, else take it
+                        var candidateClass = item.GetWeaponClass();
+
+                        if (candidateClass == WeaponClasses.Missile)
+                        {
+                            // TODO: compare missiles which one is better for ground attack
+                            // Priority Sequence:
+                            // - Antiradiation
+                            // - guided missiles
+                            // - by blast strength
+                            targetWeapon = item;
+                            if (distance > gunRange)
+                                break;  //definitely use missiles
+                        }
+
+                        if (candidateClass == WeaponClasses.Bomb)
+                        {
+                            // only useful if we are flying
+                            if (!vessel.LandedOrSplashed)
+                            {
+                                if ((targetWeapon != null) && (targetWeapon.GetWeaponClass() == WeaponClasses.Bomb))
+                                    // dont replace bombs
+                                    break;
+                                else
+                                    // TODO: compare bombs which one is better for ground attack
+                                    // Priority Sequence:
+                                    // - guided (JDAM)
+                                    // - by blast strength
+                                    targetWeapon = item;
+                            }
+                        }
+
+                        if (candidateClass == WeaponClasses.Rocket)
+                        {
+
+                            if ((targetWeapon != null) && (targetWeapon.GetWeaponClass() == WeaponClasses.Bomb))
+                                // dont replace bombs
+                                continue;
+                            else
+                                // TODO: compare bombs which one is better for ground attack
+                                // Priority Sequence:
+                                // - by blast strength
+                                targetWeapon = item;
+                        }
+
+
+                        if ((candidateClass == WeaponClasses.Gun))
+                        {
+                            // Flying: prefer bombs/rockets/missiles
+                            if (!vessel.LandedOrSplashed)
+                                if (targetWeapon != null)
+                                    // dont replace bombs/rockets
+                                    continue;
+                            // else:
+                            if ((distance > gunRange) && (targetWeapon != null))
+                                continue;
+                            else
+                            {
+                                // For Ground Attack, favour higher blast strength
+                                var candidateImpact = ((ModuleWeapon)item).cannonShellPower * ((ModuleWeapon)item).cannonShellRadius + ((ModuleWeapon)item).cannonShellHeat;
+
+                                if ((targetWeapon != null) && (targetWeaponImpact > candidateImpact))
+                                    continue; //dont replace better guns
+
+                                targetWeapon = item;
+                                targetWeaponImpact = candidateImpact;
+                            }
+                        }
+
+                    }
+
+                }
+            }
+
+            // return result of weapon selection
+            if (targetWeapon != null)
+            {
+                //update the legacy lists & arrays, especially selectedWeapon and weaponIndex
+                selectedWeapon = targetWeapon;
+                // find it in weaponArray
+                for (int i = 1; i < weaponArray.Length; i++)
+                {
+                    weaponIndex = i;
+                    if (selectedWeapon.GetShortName() == weaponArray[weaponIndex].GetShortName())
+                    {
+                        break;
+                    }
+                }
+
+                if (BDArmorySettings.DRAW_DEBUG_LABELS)
+                {
+                    Debug.Log("[BDArmory] : " + vessel.vesselName + " - Selected weapon " + selectedWeapon.GetShortName());
+                }
+
+                PrepareWeapons();
+                DisplaySelectedWeaponMessage();
+                return true;
+            }
+            else
+            {
+
+                if (BDArmorySettings.DRAW_DEBUG_LABELS)
+                {
+                    Debug.Log("[BDArmory] : " + vessel.vesselName + " - No weapon selected.");
+                }
+
+                selectedWeapon = null;
+                weaponIndex = 0;
+                return false;
+            }
+
+        }
+
+        // extension for feature_engagementenvelope: check engagement parameters of the weapon if it can be used against the current target
+        bool CheckEngagementEnvelope(IBDWeapon weaponCandidate, float distanceToTarget)
+        {
+            if (BDArmorySettings.DRAW_DEBUG_LABELS)
+            {
+                Debug.Log("[BDArmory] : " + vessel.vesselName + " - Checking engagement envelope of " + weaponCandidate.GetShortName());
+            }
+
+            var engageableWeapon = weaponCandidate as EngageableWeapon;
+
+            if (engageableWeapon == null) return true;
+            if (distanceToTarget < engageableWeapon.GetEngagementRangeMin()) return false;
+            if (distanceToTarget > engageableWeapon.GetEngagementRangeMax()) return false;
+
+            switch (weaponCandidate.GetWeaponClass())
+            {
+
+                case WeaponClasses.DefenseLaser:
+                // TODO: is laser treated like a gun?
+
+                case WeaponClasses.Gun:
+                    var gun = (ModuleWeapon)weaponCandidate;
+
+                    // check yaw range of turret
+                    var turret = gun.turret;
+                    float gimbalTolerance = vessel.LandedOrSplashed ? 0 : 15;
+                    if (turret != null)
+                        if (!TargetInTurretRange(turret, gimbalTolerance))
+                            return false;
+
+                    // check overheat
+                    if (gun.isOverheated)
+                        return false;
+
+                    // check ammo
+                    if (CheckAmmo(gun))
+                    {
+
+                        if (BDArmorySettings.DRAW_DEBUG_LABELS)
+                        {
+                            Debug.Log("[BDArmory] : " + vessel.vesselName + " - Firing possible with " + weaponCandidate.GetShortName());
+                        }
+                        return true;
+                    }
+                    break;
+
+
+                case WeaponClasses.Missile:
+                    var ml = (MissileBase)weaponCandidate;
+
+                    // lock radar if needed
+                    if (ml.TargetingMode == MissileBase.TargetingModes.Radar)
+                    {
+                        foreach (var rd in radars)
+                        {
+                            if (rd.canLock)
+                            {
+                                rd.EnableRadar();
+                                break;
+                            }
+                        }
+                    }
+
+                    // check DLZ
+                    MissileLaunchParams dlz = MissileLaunchParams.GetDynamicLaunchParams(ml, guardTarget.srf_velocity, guardTarget.transform.position);
+                    if (vessel.srfSpeed > ml.minLaunchSpeed && distanceToTarget < dlz.maxLaunchRange && distanceToTarget > dlz.minLaunchRange)
+                    {
+                            return true;
+                    }
+                    if (BDArmorySettings.DRAW_DEBUG_LABELS)
+                    {
+                        Debug.Log("[BDArmory] : " + vessel.vesselName + " - Failed DLZ test: " + weaponCandidate.GetShortName());
+                    }
+                    break;
+
+
+                case WeaponClasses.Bomb:
+                    if (!vessel.LandedOrSplashed)
+                        return true;    // TODO: bomb always allowed?
+                    break;
+
+
+                case WeaponClasses.Rocket:
+                    var rocketlauncher = (RocketLauncher)weaponCandidate;
+                    // check yaw range of turret
+                    turret = rocketlauncher.turret;
+                    gimbalTolerance = vessel.LandedOrSplashed ? 0 : 15;
+                    if (turret != null)
+                        if (TargetInTurretRange(turret, gimbalTolerance))
+                            return true;
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+
+            
+
+            return false;
+        }
+
 
         void SetTarget(TargetInfo target)
         {
@@ -4218,7 +4421,8 @@ namespace BahaTurret
                         }
                         weapon.legacyGuardTarget = guardTarget;
                         weapon.autoFireStartTime = Time.time;
-                        weapon.autoFireDuration = targetScanInterval / 2;
+                        //weapon.autoFireDuration = targetScanInterval / 2;
+                        weapon.autoFireDuration = (fireBurstLength < 0.5) ? targetScanInterval / 2 : fireBurstLength;
                         weapon.autoRippleRate = rippleFire ? rippleRPM : 0;
                     }
                 }
@@ -4231,7 +4435,8 @@ namespace BahaTurret
                     {
                         weapon.legacyTargetVessel = guardTarget;
                         weapon.autoFireTimer = Time.time;
-                        weapon.autoFireLength = 3 * targetScanInterval / 4;
+                        //weapon.autoFireLength = 3 * targetScanInterval / 4;
+                        weapon.autoFireLength = (fireBurstLength < 0.5) ? targetScanInterval / 2 : fireBurstLength;
                     }
                 }
             }
@@ -4378,7 +4583,7 @@ namespace BahaTurret
             {
                 signedAnglePitch -= Mathf.Sign(signedAnglePitch) * 180;
             }
-            bool withinPitchRange = (signedAnglePitch > turret.minPitch && signedAnglePitch < turret.maxPitch);
+            bool withinPitchRange = (signedAnglePitch >= turret.minPitch && signedAnglePitch <= turret.maxPitch + tolerance);
 
             if (angleYaw < (turret.yawRange / 2) + tolerance && withinPitchRange)
             {

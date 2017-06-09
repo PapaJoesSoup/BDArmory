@@ -7,7 +7,7 @@ using KSP.UI.Screens;
 
 namespace BahaTurret
 {
-    public class ModuleWeapon : PartModule, IBDWeapon
+    public class ModuleWeapon : EngageableWeapon, IBDWeapon
     {
         #region Declarations
 
@@ -490,6 +490,8 @@ namespace BahaTurret
 
             ParseWeaponType();
             ParseBulletDragType();
+            // extension for feature_engagementenvelope
+            InitializeEngagementRange(0, maxEffectiveDistance);
 
             bulletBallisticCoefficient = bulletMass / bulletDragArea * 1000; //1000 to convert from tonnes to kilograms
 
@@ -1014,6 +1016,7 @@ namespace BahaTurret
                         pBullet.mass = bulletMass;
                         pBullet.ballisticCoefficient = bulletBallisticCoefficient;
                         pBullet.flightTimeElapsed = 0;
+                        pBullet.maxDistance = Mathf.Max(maxTargetingRange, maxEffectiveDistance); //limit distance to weapons maxeffective distance
 
                         timeFired = Time.time;
 
@@ -2081,16 +2084,26 @@ namespace BahaTurret
         {
             var output = new StringBuilder();
             output.Append(Environment.NewLine);
-            output.Append(String.Format("Weapon Type: {0}", eWeaponType.ToString()));
+            output.Append(String.Format("Weapon Type: {0}", weaponType));
             output.Append(Environment.NewLine);
             output.Append(String.Format("Rounds Per Minute: {0}", roundsPerMinute));
             output.Append(Environment.NewLine);
             output.Append(String.Format("Ammunition: {0}", ammoName));
             output.Append(Environment.NewLine);
+            output.Append(String.Format("Bullet type: {0}", bulletType));
+            output.Append(Environment.NewLine);
             output.Append(String.Format("Max Range: {0} meters", maxEffectiveDistance));
             output.Append(Environment.NewLine);
+            if (weaponType == "cannon")
+            {
+                output.Append(String.Format("Shell power/heat/radius: {0}/{1}/{2}", cannonShellPower, cannonShellHeat, cannonShellRadius));
+                output.Append(Environment.NewLine);
+                output.Append(String.Format("Air detonation: {0}", airDetonation));
+                output.Append(Environment.NewLine);
+            }
+
             return output.ToString();
         }
 
-     }
+    }
 }

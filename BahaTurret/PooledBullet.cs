@@ -73,7 +73,7 @@ namespace BahaTurret
         Vector3 sourceOriginalV;
         bool hasBounced = false;
 
-        float maxDistance;
+        public float maxDistance;
 
         //bool isUnderwater = false;
 
@@ -97,7 +97,9 @@ namespace BahaTurret
             startPosition = transform.position;
             collisionEnabled = false;
 
-            maxDistance = Mathf.Clamp(BDArmorySettings.PHYSICS_RANGE, 2500, BDArmorySettings.MAX_BULLET_RANGE);
+            //maxDistance = Mathf.Clamp(BDArmorySettings.PHYSICS_RANGE, 2500, BDArmorySettings.MAX_BULLET_RANGE);
+            //maxDistance set to gun's weapons range by ModuleWeapon!
+
             if (!wasInitiated)
             {
                 //projectileColor.a = projectileColor.a/2;

@@ -302,7 +302,9 @@ namespace BahaTurret
 
             weaponClass = WeaponClasses.Missile;
             WeaponName = GetShortName();
-                      
+
+            InitializeEngagementRange(minStaticLaunchRange, maxStaticLaunchRange);
+            this.ToggleEngageOptions();
             this.activeRadarRange = ActiveRadarRange;
 
             //TODO: BDModularGuidance should be configurable?
@@ -350,44 +352,6 @@ namespace BahaTurret
             this.ForwardTransformAxis = (TransformAxisVectors) Enum.Parse(typeof(TransformAxisVectors), ForwardTransform);
             this.UpTransformAxis = (TransformAxisVectors)Enum.Parse(typeof(TransformAxisVectors), UpTransform);
         }      
-
-        /// <summary>
-        /// This method will obtain the expected transform forward that matches the expected BD missile transform
-        /// </summary>
-        //private TransformAxisVectors CalculateTransform(Vector3 referenceVector)
-        //{
-        //    var vectorAngles = new Dictionary<TransformAxisVectors, float>
-        //    {
-        //        {
-        //            TransformAxisVectors.ForwardPositive,
-        //            Vector3.Angle(MissileReferenceTransform.forward.normalized, referenceVector)
-        //        },
-        //        {
-        //            TransformAxisVectors.ForwardNegative,
-        //            Vector3.Angle(-MissileReferenceTransform.forward.normalized, referenceVector)
-        //        },
-        //        {
-        //            TransformAxisVectors.UpNegative,
-        //            Vector3.Angle(-MissileReferenceTransform.up.normalized, referenceVector)
-        //        },
-        //        {
-        //            TransformAxisVectors.UpPositive,
-        //            Vector3.Angle(MissileReferenceTransform.up.normalized, referenceVector)
-        //        },
-        //        {
-        //            TransformAxisVectors.RightPositive,
-        //            Vector3.Angle(MissileReferenceTransform.right.normalized, referenceVector)
-        //        },
-        //         {
-        //            TransformAxisVectors.RightNegative,
-        //            Vector3.Angle(-MissileReferenceTransform.right.normalized, referenceVector)
-        //         }
-
-        //    };
-        //    var result = vectorAngles.First(x => x.Value == vectorAngles.Min(y => y.Value)).Key;
-        //    return result;
-        //}
-
 
         void UpdateGuidance()
         {
@@ -440,7 +404,7 @@ namespace BahaTurret
                 TimeToImpact = timeToImpact;
                 if (Vector3.Angle(aamTarget - vessel.CoM, vessel.transform.forward) > maxOffBoresight * 0.75f)
                 {
-                    Debug.LogFormat("[BDArmory]: Missile with Name={0} has exceeded the max off boresight, checking missed target ");
+                    Debug.LogFormat("[BDArmory]: Missile with Name={0} has exceeded the max off boresight, checking missed target ",vessel.vesselName);
                     aamTarget = TargetPosition;
                 }
                 DrawDebugLine(vessel.CoM, aamTarget);

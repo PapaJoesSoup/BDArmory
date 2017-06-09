@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace BahaTurret
 {
-    public abstract class MissileBase : PartModule, IBDWeapon
+    public abstract class MissileBase : EngageableWeapon, IBDWeapon
     {
        protected WeaponClasses weaponClass;
         public WeaponClasses GetWeaponClass()
@@ -101,6 +101,7 @@ namespace BahaTurret
         public float TimeIndex => Time.time - TimeFired;
 
         public TargetingModes TargetingMode { get; set; }
+        public TargetingModes TargetingModeTerminal { get; set; }
 
         public float TimeToImpact { get; set; }
 
@@ -548,7 +549,7 @@ namespace BahaTurret
         {
             if (TargetingMode == TargetingModes.AntiRad && TargetAcquired && v == vessel)
             {
-                if ((source - VectorUtils.GetWorldSurfacePostion(targetGPSCoords, vessel.mainBody)).sqrMagnitude < Mathf.Pow(50, 2)
+                if ((source - VectorUtils.GetWorldSurfacePostion(targetGPSCoords, vessel.mainBody)).sqrMagnitude < Mathf.Pow(maxStaticLaunchRange / 4, 2) //drastically increase update range for anti-radiation missile to track moving targets!
                     && Vector3.Angle(source - transform.position, GetForwardTransform()) < maxOffBoresight)
                 {
                     TargetAcquired = true;

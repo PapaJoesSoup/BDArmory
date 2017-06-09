@@ -1,11 +1,12 @@
 using System;
+using System.Text;
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
 namespace BahaTurret
 {
-    public class RocketLauncher : PartModule, IBDWeapon
+    public class RocketLauncher : EngageableWeapon, IBDWeapon
     {
         public bool hasRocket = true;
 
@@ -244,6 +245,9 @@ namespace BahaTurret
 
         public override void OnStart(PartModule.StartState state)
         {
+            // extension for feature_engagementenvelope
+            InitializeEngagementRange(0, maxTargetingRange);
+
             if (HighLogic.LoadedSceneIsFlight)
             {
                 part.force_activate();
@@ -757,6 +761,25 @@ namespace BahaTurret
                 if (i < rocketsLeft) rockets[i].localScale = Vector3.one;
                 else rockets[i].localScale = Vector3.zero;
             }
+        }
+
+        // RMB info in editor
+        public override string GetInfo()
+        {
+            var output = new StringBuilder();
+            output.Append(Environment.NewLine);
+            output.Append(String.Format("Weapon Type: {0}", "Rocket Launcher"));
+            output.Append(Environment.NewLine);
+            output.Append(String.Format("Rocket Type: {0}", rocketType));
+            output.Append(Environment.NewLine);
+            output.Append(String.Format("Max Range: {0} meters", maxTargetingRange));
+            output.Append(Environment.NewLine);
+
+            output.Append(String.Format("Blast radius/force/heat: {0}/{1}/{2}", blastRadius, blastForce, blastHeat));
+            output.Append(Environment.NewLine);
+
+            return output.ToString();
+
         }
     }
 

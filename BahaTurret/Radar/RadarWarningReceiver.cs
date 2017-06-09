@@ -180,7 +180,11 @@ namespace BahaTurret
 
         void ReceiveLaunchWarning(Vector3 source, Vector3 direction)
         {
-            if (!referenceTransform || !part) return;
+            if(referenceTransform == null) return;
+            if (part == null) return;
+            if (weaponManager == null) return;
+
+           
 
             float sqrDist = (part.transform.position - source).sqrMagnitude;
             if (sqrDist < Mathf.Pow(5000, 2) && sqrDist > Mathf.Pow(100, 2) &&
@@ -202,6 +206,10 @@ namespace BahaTurret
 
         void ReceivePing(Vessel v, Vector3 source, RWRThreatTypes type, float persistTime)
         {
+            if (v == null) return;
+            if (referenceTransform == null) return;
+            if (weaponManager == null) return;
+
             if (rwrEnabled && vessel && v == vessel)
             {
                 if (type == RWRThreatTypes.MissileLaunch)

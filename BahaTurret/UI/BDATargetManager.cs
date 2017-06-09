@@ -273,11 +273,12 @@ namespace BahaTurret
             return true;
         }
 
-        public static TargetSignatureData GetHeatTarget(Ray ray, float scanRadius, float highpassThreshold, bool allAspect, MissileFire mf = null)
-		{
+        //public static TargetSignatureData GetHeatTarget(Ray ray, float scanRadius, float highpassThreshold, bool allAspect, MissileFire mf = null)
+        public static TargetSignatureData GetHeatTarget(Ray ray, float scanRadius, float highpassThreshold, bool allAspect, MissileFire mf = null, bool favorGroundTargets = false)
+        {
 			float minScore = highpassThreshold;
-			float minMass = 0.5f;
-			TargetSignatureData finalData = TargetSignatureData.noTarget;
+            float minMass = 0.15f;  //otherwise the RAMs have trouble shooting down incoming missiles
+            TargetSignatureData finalData = TargetSignatureData.noTarget;
 			float finalScore = 0;
 			foreach(var vessel in BDATargetManager.LoadedVessels)
 			{
@@ -286,7 +287,10 @@ namespace BahaTurret
 					continue;
 				}
 
-				TargetInfo tInfo = vessel.gameObject.GetComponent<TargetInfo>();
+                if (favorGroundTargets && !vessel.LandedOrSplashed) // for AGM heat guidance
+                    continue;
+
+                TargetInfo tInfo = vessel.gameObject.GetComponent<TargetInfo>();
 				if(mf == null || 
 					!tInfo || 
 					!(mf && tInfo.isMissile && tInfo.team != BDATargetManager.BoolToTeam(mf.team) && (tInfo.MissileBaseModule.MissileState == MissileBase.MissileStates.Boost || tInfo.MissileBaseModule.MissileState == MissileBase.MissileStates.Cruise)))
@@ -319,7 +323,7 @@ namespace BahaTurret
 						score = Mathf.Max (score, thisScore);
 					}
 
-					if(vessel.LandedOrSplashed)
+					if(vessel.LandedOrSplashed && !favorGroundTargets)
 					{
 						score /= 4;
 					}
