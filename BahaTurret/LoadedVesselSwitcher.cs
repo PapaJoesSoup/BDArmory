@@ -108,6 +108,7 @@ namespace BahaTurret
                 _wmgrsB = new List<MissileFire>();
             _wmgrsB.Clear();
 
+            if (FlightGlobals.Vessels == null) return;
             foreach (var v in FlightGlobals.Vessels)
             {
                 if (!v) continue;

@@ -690,7 +690,7 @@ namespace BahaTurret
 
 				if(BDArmorySettings.DRAW_DEBUG_LABELS)
 				{
-					GUI.Label(new Rect(500, 700, 500, 500), "Slew rate: " + finalSlewSpeed);
+					GUI.Label(new Rect(500, 800, 500, 500), "Slew rate: " + finalSlewSpeed);
 				}
 
 				if(BDArmorySettings.DRAW_DEBUG_LINES)

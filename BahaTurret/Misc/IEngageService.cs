@@ -6,5 +6,6 @@ namespace BahaTurret
         bool GetEngageAirTargets();
         bool GetEngageMissileTargets();
         bool GetEngageGroundTargets();
+        bool GetEngageSLWTargets();
     }
 }

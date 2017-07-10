@@ -650,7 +650,6 @@ namespace BahaTurret
                 return false;
             }
 
-
             Vector3 targetPlanarDirection = Vector3.ProjectOnPlane(position - referenceTransform.position,
                 referenceTransform.up);
             float angle = Vector3.Angle(targetPlanarDirection, referenceTransform.forward);
@@ -835,12 +834,12 @@ namespace BahaTurret
             lockedTargets.Clear();
             currLocks = 0;
             lockedTargetIndex = 0;
-
-
+            
             if (vesselRadarData)
             {
                 vesselRadarData.UnlockAllTargetsOfRadar(this);
             }
+            if (BDArmorySettings.DRAW_DEBUG_LINES) Debug.Log("[BDArmory]: Radar Targets were Cleared");
         }
 
         public void SetActiveLock(TargetSignatureData target)
@@ -1071,6 +1070,8 @@ namespace BahaTurret
                     return "MISSILE";
                 case 5:
                     return "DETECTION";
+                case 6:
+                    return "SONAR";
             }
             return "UNKNOWN";
             //{SAM = 0, Fighter = 1, AWACS = 2, MissileLaunch = 3, MissileLock = 4, Detection = 5}
@@ -1117,7 +1118,7 @@ namespace BahaTurret
             double chargeAvailable = part.RequestResource("ElectricCharge", drainAmount, ResourceFlowMode.ALL_VESSEL);
             if (chargeAvailable < drainAmount*0.95f)
             {
-                ScreenMessages.PostScreenMessage("Radar Requires EC", 2.0f, ScreenMessageStyle.UPPER_CENTER);
+                ScreenMessages.PostScreenMessage("Radar Requires EC", 5.0f, ScreenMessageStyle.UPPER_CENTER);
                 DisableRadar();
             }
         }

@@ -77,7 +77,7 @@ namespace BahaTurret
         float guiInputCooldown = 0.2f;
 
         //range increments
-        public float[] rIncrements = new float[] {5000, 10000, 20000};
+        public float[] rIncrements = new float[] {500,2500,5000,10000,20000,40000};
         int rangeIndex = 0;
 
         //lock cursor
@@ -435,7 +435,7 @@ namespace BahaTurret
                 vesselReferenceTransform.localScale = Vector3.one;
                 vesselReferenceTransform.position = vessel.CoM;
 
-                if (vessel.Landed)
+                if (vessel.LandedOrSplashed)
                 {
                     vesselReferenceTransform.rotation =
                         Quaternion.LookRotation(VectorUtils.GetNorthVector(vessel.transform.position, vessel.mainBody),
@@ -496,7 +496,6 @@ namespace BahaTurret
                 UpdateLockedTargets();
             }
         }
-
 
         void IncreaseRange()
         {
@@ -617,7 +616,6 @@ namespace BahaTurret
                 radar.DisableRadar();
             }
         }
-
 
         public void SlaveTurrets()
         {
@@ -743,7 +741,7 @@ namespace BahaTurret
             {
                 GUI.DrawTexture(radarRect, omniBgTexture, ScaleMode.StretchToFill, true);
 
-                if (vessel.Landed)
+                if (vessel.LandedOrSplashed)
                 {
                     GUI.Label(radarRect, "  N", radarTopStyle);
                 }
@@ -1244,13 +1242,13 @@ namespace BahaTurret
 
         void RefreshAvailableLinks()
         {
-            if (!HighLogic.LoadedSceneIsFlight || !weaponManager)
-            {
-                //Debug.Log("tried refreshing links but weapon manager is null");
+            if (!HighLogic.LoadedSceneIsFlight || !weaponManager || (FlightGlobals.Vessels == null))
+            {                
                 return;
             }
 
             availableExternalVRDs = new List<VesselRadarData>();
+
             foreach (var v in FlightGlobals.Vessels)
             {
                 if (v != null && v && v.loaded && vessel != null && v != vessel)
@@ -1322,14 +1320,21 @@ namespace BahaTurret
 
         public void AddRadarContact(ModuleRadar radar, TargetSignatureData contactData, bool _locked)
         {
+            bool addContact = true;
+
             RadarDisplayData rData = new RadarDisplayData();
             rData.vessel = contactData.vessel;
 
-            if (rData.vessel == vessel)
-            {
-                return;
-            }
+            if (rData.vessel == vessel) return;
+                                    
+            if (rData.vessel.altitude < -20 && radar.rwrThreatType != 6) addContact = false; // Normal Radar Should not detect Underwater vessels
+            if (!rData.vessel.LandedOrSplashed && radar.rwrThreatType == 6) addContact = false; //Sonar should not detect Aircraft
+            if (rData.vessel.altitude < 0 && radar.rwrThreatType == 6 && vessel.Splashed) addContact = true; //Sonar only detects underwater vessels // Sonar should only work when in the water
+            if (!vessel.Splashed && radar.rwrThreatType == 6) addContact = false; // Sonar should only work when in the water
+            if (rData.vessel.Landed && radar.rwrThreatType == 6) addContact = false; //Sonar should not detect land vessels
 
+            if (addContact == false) return;
+            
             rData.signalPersistTime = radar.signalPersistTime;
             rData.detectedByRadar = radar;
             rData.locked = _locked;
@@ -1540,7 +1545,7 @@ namespace BahaTurret
 
 						if(i == lTarInd && weaponManager && weaponManager.selectedWeapon != null)
 						{
-							if(weaponManager.selectedWeapon.GetWeaponClass() == WeaponClasses.Missile)
+							if(weaponManager.selectedWeapon.GetWeaponClass() == WeaponClasses.Missile || weaponManager.selectedWeapon.GetWeaponClass() == WeaponClasses.SLW)
 							{
 								MissileBase currMissile = weaponManager.CurrentMissile;
 								if(currMissile.TargetingMode == MissileBase.TargetingModes.Radar || currMissile.TargetingMode == MissileBase.TargetingModes.Heat)

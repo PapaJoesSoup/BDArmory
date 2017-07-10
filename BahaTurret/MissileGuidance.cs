@@ -28,7 +28,7 @@ namespace BahaTurret
 
             Vector3 finalTarget = targetPosition +
                                   (Mathf.Clamp(
-                                       (distanceToTarget - ((float) missileVessel.srfSpeed*descentRatio))*0.22f, 0, 2000)*
+                                       (distanceToTarget - ((float) missileVessel.srfSpeed*descentRatio))*0.22f, 0, 5000)*
                                    upDirection);
 
 
@@ -351,8 +351,7 @@ namespace BahaTurret
             }
             return finalTarget;
         }
-
-
+        
         public static FloatCurve DefaultLiftCurve = null;
         public static FloatCurve DefaultDragCurve = null;
 

@@ -22,6 +22,7 @@ namespace BahaTurret
         private List<IBDWeapon> weaponTypesAir = new List<IBDWeapon>(LIST_CAPACITY);
         private List<IBDWeapon> weaponTypesMissile = new List<IBDWeapon>(LIST_CAPACITY);
         private List<IBDWeapon> weaponTypesGround = new List<IBDWeapon>(LIST_CAPACITY);
+        private List<IBDWeapon> weaponTypesSLW = new List<IBDWeapon>(LIST_CAPACITY);
 
         [KSPField(guiActiveEditor = false, isPersistant = true, guiActive = false)] public int weaponIndex = 0;
 
@@ -336,7 +337,6 @@ namespace BahaTurret
 
 		//current weapon ref
 		public MissileBase CurrentMissile;
-
         public ModuleWeapon currentGun
         {
             get
@@ -424,7 +424,7 @@ namespace BahaTurret
         [KSPField(isPersistant = true)] public bool guardMode = false;
 
 
-        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Target Type: "),
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "Target Type: "),
          UI_Toggle(disabledText = "Vessels", enabledText = "Missiles")] public bool targetMissiles = false;
 
         [KSPAction("Toggle Target Type")]
@@ -471,7 +471,7 @@ namespace BahaTurret
 		
 		
 		[KSPField(isPersistant = true)]
-		public bool team = false;
+        public bool team = false;
 
 
         [KSPAction("Toggle Team")]
@@ -509,9 +509,12 @@ namespace BahaTurret
             }
 
             UpdateTeamString();
+            ResetGuardInterval();
+
         }
 
-        [KSPField(isPersistant = true)] public bool isArmed = false;
+        [KSPField(isPersistant = true)]
+        public bool isArmed = false;
 
 
         [KSPAction("Arm/Disarm")]
@@ -825,6 +828,7 @@ namespace BahaTurret
                 //targeting
                 if (weaponIndex > 0 &&
                     (selectedWeapon.GetWeaponClass() == WeaponClasses.Missile ||
+                    selectedWeapon.GetWeaponClass() == WeaponClasses.SLW ||
                      selectedWeapon.GetWeaponClass() == WeaponClasses.Bomb))
                 {
                     SearchForLaserPoint();
@@ -855,6 +859,7 @@ namespace BahaTurret
                     (selectedWeapon.GetWeaponClass() == WeaponClasses.Rocket
                      || selectedWeapon.GetWeaponClass() == WeaponClasses.Missile
                      || selectedWeapon.GetWeaponClass() == WeaponClasses.Bomb
+                     || selectedWeapon.GetWeaponClass() == WeaponClasses.SLW
                     ))
                 {
                     canRipple = true;
@@ -1442,13 +1447,14 @@ namespace BahaTurret
                     }
                     if (ml && laserPointDetected && foundCam && (foundCam.groundTargetPosition - guardTarget.CoM).magnitude < 20)
                     {
-
                         FireCurrentMissile(true);
-
                         StartCoroutine(MissileAwayRoutine(ml));
-
-
                     }
+                    else
+                    {
+                        if (BDArmorySettings.DRAW_DEBUG_LABELS) Debug.Log("[BDArmory]: Laser Target Error");
+                    }
+
                 }
 
 
@@ -1912,8 +1918,7 @@ namespace BahaTurret
                     selectedWeapon = ml;
                     return;
                 }
-
-                //Part partSym = FindSym(ml.part);
+                                
                 if (ml is MissileLauncher && ((MissileLauncher)ml).missileTurret)
                 {
                     ((MissileLauncher)ml).missileTurret.FireMissile(((MissileLauncher)ml));
@@ -1948,7 +1953,6 @@ namespace BahaTurret
                 SendTargetDataToMissile(missile);
                 missile.FireMissile();
             }
-
 
             UpdateList();
         }
@@ -2189,7 +2193,8 @@ namespace BahaTurret
             }
 
             if (selectedWeapon.GetWeaponClass() == WeaponClasses.Missile ||
-                selectedWeapon.GetWeaponClass() == WeaponClasses.Bomb)
+                selectedWeapon.GetWeaponClass() == WeaponClasses.SLW ||
+                selectedWeapon.GetWeaponClass() == WeaponClasses.Bomb )
             {
                 FireCurrentMissile(true);
             }
@@ -2208,7 +2213,6 @@ namespace BahaTurret
             }
 
             UpdateList();
-            //TODO: fire rockets and take care of extra things
         }
 
 
@@ -2250,6 +2254,7 @@ namespace BahaTurret
             weaponTypesAir.Clear();
             weaponTypesMissile.Clear();
             weaponTypesGround.Clear();
+            weaponTypesSLW.Clear();
 
             foreach (IBDWeapon weapon in vessel.FindPartModulesImplementing<IBDWeapon>())
             {
@@ -2283,12 +2288,14 @@ namespace BahaTurret
                     if (engageableWeapon.GetEngageAirTargets()) weaponTypesAir.Add(weapon);
                     if (engageableWeapon.GetEngageMissileTargets()) weaponTypesMissile.Add(weapon);
                     if (engageableWeapon.GetEngageGroundTargets()) weaponTypesGround.Add(weapon);
+                    if (engageableWeapon.GetEngageSLWTargets()) weaponTypesSLW.Add(weapon);
                 }
                 else
                 {
                     weaponTypesAir.Add(weapon);
                     weaponTypesMissile.Add(weapon);
                     weaponTypesGround.Add(weapon);
+                    weaponTypesSLW.Add(weapon);
                 }  
             }
 
@@ -2337,21 +2344,19 @@ namespace BahaTurret
 
             MissileBase aMl = GetAsymMissile();
             if (aMl)
-            {
-                //Debug.Log("setting asym missile: " + aMl.part.name);
+            {                
                 selectedWeapon = aMl;
                 CurrentMissile = aMl;
             }
 
             MissileBase rMl = GetRotaryReadyMissile();
             if (rMl)
-            {
-                //Debug.Log("setting rotary ready missile: " + rMl.part.name);
+            {             
                 selectedWeapon = rMl;
                 CurrentMissile = rMl;
             }
 
-            if (selectedWeapon != null && (selectedWeapon.GetWeaponClass() == WeaponClasses.Bomb || selectedWeapon.GetWeaponClass() == WeaponClasses.Missile))
+            if (selectedWeapon != null && (selectedWeapon.GetWeaponClass() == WeaponClasses.Bomb || selectedWeapon.GetWeaponClass() == WeaponClasses.Missile || selectedWeapon.GetWeaponClass() == WeaponClasses.SLW))
             {
                 //Debug.Log("[BDArmory]: =====selected weapon: " + selectedWeapon.GetPart().name);
                 if (!CurrentMissile || CurrentMissile.part.name != selectedWeapon.GetPart().name)
@@ -2779,7 +2784,8 @@ namespace BahaTurret
         {
             if (weaponIndex == 0) return null;
             if (weaponArray[weaponIndex].GetWeaponClass() == WeaponClasses.Bomb ||
-               weaponArray[weaponIndex].GetWeaponClass() == WeaponClasses.Missile)
+                weaponArray[weaponIndex].GetWeaponClass() == WeaponClasses.Missile ||
+                weaponArray[weaponIndex].GetWeaponClass() ==WeaponClasses.SLW)
             {
                 MissileBase firstMl = null;
 
@@ -3288,7 +3294,7 @@ namespace BahaTurret
             {
                 if (BDArmorySettings.DRAW_DEBUG_LABELS)
                 {
-                    Debug.Log("[BDArmory]: " + vessel.vesselName + " is disengaging - no valid weapons");
+                    Debug.Log("[BDArmory]: " + vessel.vesselName + " is disengaging - no valid weapons - no valid targets");
                 }
                 CycleWeapon(0);
                 SetTarget(null);
@@ -3299,7 +3305,7 @@ namespace BahaTurret
                 return;
             }
 
-            Debug.Log("[BDArmory]: Unhandled target case.");
+            Debug.Log("[BDArmory]: Unhandled target case");
         }
 
         // OLD method without engagement envelope -> new method see: SmartPickWeapon_EngageEnvelope
@@ -3422,9 +3428,9 @@ namespace BahaTurret
             if (pilotAI && pilotAI.pilotEnabled && vessel.LandedOrSplashed) // This must be changed once pilots for ground/ships etc exist!
                 return false;
 
-
             // Part 2: check weapons against individual target types
             // ------
+
             float distance = Vector3.Distance(transform.position + vessel.srf_velocity, target.position + target.velocity);
             IBDWeapon targetWeapon = null;
             float targetWeaponRPM = 0;
@@ -3472,15 +3478,16 @@ namespace BahaTurret
 
                             var mlauncher = item as MissileLauncher;
                             var candidateTDPS = 0f;
-                        
+
                             if (mlauncher != null)
                             {
                                 candidateTDPS = mlauncher.thrust + mlauncher.maxTurnRateDPS;
                             }
                             else
-                            { //is modular missile
+                            { 
+                                //is modular missile
                                 var mm = item as BDModularGuidance;
-                                 candidateTDPS = 5000;                                                     
+                                candidateTDPS = 5000;
                             }
 
                             if ((targetWeapon != null) && ((targetWeapon.GetWeaponClass() == WeaponClasses.Gun) || (targetWeaponTDPS > candidateTDPS)))
@@ -3496,7 +3503,8 @@ namespace BahaTurret
 
             }
 
-            else if (!target.isLanded)
+            //else if (!target.isLanded)
+            else if (target.isFlying)
             {
                 // iterate over weaponTypesAir and pick suitable one based on engagementRange (and dynamic launch zone for missiles)
                 // Prioritize by:
@@ -3653,6 +3661,39 @@ namespace BahaTurret
                     }
 
                 }
+
+                //if we have a torpedo use it
+                if (target.isSplashed)
+                foreach (var item in weaponTypesSLW)
+                {
+                    if (CheckEngagementEnvelope(item, distance))
+                    {
+                        var candidateClass = item.GetWeaponClass();
+                        if (item.GetMissileType().ToLower() == "torpedo") targetWeapon = item;                        
+
+                    }
+                }
+
+            }
+
+            if (target.isUnderwater)
+            {
+                // iterate over weaponTypesSLW (Ship Launched Weapons) and pick suitable one based on engagementRange
+                // Prioritize by:
+                // 1. Depth Charges
+                // 2. Torpedos
+
+                foreach (var item in weaponTypesSLW)
+                {
+                    if (CheckEngagementEnvelope(item, distance))
+                    {
+                        var candidateClass = item.GetWeaponClass();
+                        
+                        if(item.GetMissileType().ToLower() == "depthcharge") targetWeapon = item;
+                        else targetWeapon = item;
+
+                    }
+                }
             }
 
             // return result of weapon selection
@@ -3786,16 +3827,16 @@ namespace BahaTurret
                             return true;
                     break;
 
+                case WeaponClasses.SLW:
+                    return true;                    
+
                 default:
                     throw new ArgumentOutOfRangeException();
-            }
-
-            
+            }                  
 
             return false;
         }
-
-
+        
         void SetTarget(TargetInfo target)
         {
             if (target)
@@ -3885,7 +3926,6 @@ namespace BahaTurret
                 if (!missile) return;
 
                 float maxOffBoresight = missile.maxOffBoresight;
-
 
                 if (missile.TargetingMode != MissileBase.TargetingModes.AntiRad) return;
 
@@ -4175,7 +4215,7 @@ namespace BahaTurret
                     //firing
                     if (weaponIndex > 0)
                     {
-                        if (selectedWeapon.GetWeaponClass() == WeaponClasses.Missile)
+                        if (selectedWeapon.GetWeaponClass() == WeaponClasses.Missile || selectedWeapon.GetWeaponClass() == WeaponClasses.SLW)
                         {
                             bool launchAuthorized = true;
                             bool pilotAuthorized = true;
@@ -4464,7 +4504,7 @@ namespace BahaTurret
             }
             else
             {
-                rangeEditor.maxValue = 2500;
+                rangeEditor.maxValue = 5000;
             }
         }
 
@@ -4796,7 +4836,7 @@ namespace BahaTurret
 
         bool AltitudeTrigger()
         {
-            float maxAlt = Mathf.Clamp(BDArmorySettings.PHYSICS_RANGE * 0.75f, 2250, 5000);
+            float maxAlt = Mathf.Clamp(BDArmorySettings.PHYSICS_RANGE * 0.75f, 2250, 10000);
             double asl = vessel.mainBody.GetAltitude(vessel.CoM);
             double radarAlt = asl - vessel.terrainAltitude;
 

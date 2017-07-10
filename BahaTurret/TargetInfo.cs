@@ -19,11 +19,64 @@ namespace BahaTurret
 		{
 			get
 			{
-				if(!vessel) return false;
-				return vessel.LandedOrSplashed;
-			}
+                //if(!vessel) return false;
+                //return vessel.Landed;
+                if (!vessel) return false;
+                if (
+                    (vessel.situation == Vessel.Situations.LANDED ||
+                    vessel.situation == Vessel.Situations.SPLASHED) && // Boats should be included 
+                    !isUnderwater //refrain from shooting subs with missiles
+                    )
+                {
+                    
+                    return true;
+                }
+                
+                else
+                    return false;
+            }
 		}
-		public Vector3 velocity
+
+        public bool isFlying
+        {
+            get
+            {
+                if (!vessel) return false;
+                if (vessel.situation == Vessel.Situations.FLYING ) return true;
+                else
+                    return false;
+            }
+
+        }
+
+        public bool isUnderwater
+        {
+            get
+            {
+                if (!vessel) return false;
+                if (vessel.altitude < -20) //some boats sit slightly underwater, this is only for submersibles
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+        
+        public bool isSplashed
+        {
+            get
+            {
+                if (!vessel) return false;
+                if (vessel.situation == Vessel.Situations.SPLASHED) return true;
+                else
+                    return false;
+            }
+        }
+
+        public Vector3 velocity
 		{
 			get
 			{
@@ -31,6 +84,7 @@ namespace BahaTurret
 				return vessel.srf_velocity;
 			}
 		}
+
 		public Vector3 position
         {
             get
@@ -40,6 +94,7 @@ namespace BahaTurret
         }
 
 		private Vessel vessel;
+
 		public Vessel Vessel
 		{
 			get
@@ -205,7 +260,7 @@ namespace BahaTurret
 			}
 			else
 			{
-				if(vessel.vesselType == VesselType.Debris)
+				if((vessel.vesselType == VesselType.Debris) && (weaponManager == null))
 				{
 					RemoveFromDatabases();
 					team = BDArmorySettings.BDATeams.None;

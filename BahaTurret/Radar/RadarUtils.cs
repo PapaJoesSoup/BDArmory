@@ -6,14 +6,11 @@ namespace BahaTurret
 {
 	public static class RadarUtils
 	{
-
 		public static RenderTexture radarRT;
 		public static Texture2D radarTex2D;
 		public static Camera radarCam;
 		public static Shader radarShader;
 		public static int radarResolution = 32;
-
-
 
 		public static void SetupRadarCamera()
 		{
@@ -84,7 +81,6 @@ namespace BahaTurret
 
 			return pixels*4;
 		}
-
 
 		public static void UpdateRadarLock(MissileFire myWpnManager, float directionAngle, Transform referenceTransform, float fov, Vector3 position, float minSignature, ref TargetSignatureData[] dataArray, float dataPersistTime, bool pingRWR, RadarWarningReceiver.RWRThreatTypes rwrType, bool radarSnapshot)
 		{
@@ -511,11 +507,7 @@ namespace BahaTurret
 			return Physics.Linecast(start, end, 1<<15);
 		}
 
-	
-
-
-
-		public static Vector2 WorldToRadar(Vector3 worldPosition, Transform referenceTransform, Rect radarRect, float maxDistance)
+	    public static Vector2 WorldToRadar(Vector3 worldPosition, Transform referenceTransform, Rect radarRect, float maxDistance)
 		{
 			float scale = maxDistance/(radarRect.height/2);
 			Vector3 localPosition = referenceTransform.InverseTransformPoint(worldPosition);
@@ -537,10 +529,7 @@ namespace BahaTurret
 			return radarPos;
 		}
 
-
-	
-
-
+        
 	}
 }
 

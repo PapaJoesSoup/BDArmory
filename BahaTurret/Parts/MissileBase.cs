@@ -20,6 +20,11 @@ namespace BahaTurret
             return shortName;
         }
 
+        public string GetMissileType()
+        {
+            return missileType;
+        }
+
         [KSPField]
         public string missileType = "missile";
 
@@ -39,6 +44,17 @@ namespace BahaTurret
 
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Detonation distance override"), UI_FloatRange(minValue = 0f, maxValue = 500f, stepIncrement = 10f, scene = UI_Scene.Editor, affectSymCounterparts = UI_Scene.All)]
         public float DetonationDistance = -1;
+
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "SLW Offset"), UI_FloatRange(minValue = -1000f, maxValue = 0f, stepIncrement = 100f, affectSymCounterparts = UI_Scene.All)]
+        public float SLWOffset = 0;
+
+        public float getSWLWOffset
+        {
+            get
+            {
+                return SLWOffset;
+            }
+        }
 
         [KSPField]
         public bool guidanceActive = true;
@@ -82,7 +98,7 @@ namespace BahaTurret
 
         public MissileStates MissileState { get; set; } = MissileStates.Idle;
 
-        public enum GuidanceModes { None, AAMLead, AAMPure, AGM, AGMBallistic, Cruise, STS, Bomb, RCS, BeamRiding }
+        public enum GuidanceModes { None, AAMLead, AAMPure, AGM, AGMBallistic, Cruise, STS, Bomb, RCS, BeamRiding, SLW}
 
         public GuidanceModes GuidanceMode;
 
@@ -139,19 +155,17 @@ namespace BahaTurret
         //public ModuleRadar radar;
         public VesselRadarData vrd;
         public TargetSignatureData radarTarget;
-        private int snapshotTicker;
-        private int locksCount = 0;
         private TargetSignatureData[] scannedTargets;
+        public MissileFire TargetMf = null;
+        private LineRenderer LR;
+
+        private int snapshotTicker;
+        private int locksCount = 0;        
         private float _radarFailTimer = 0;
         private float maxRadarFailTime = 1;
         private float lastRWRPing = 0;
         private bool radarLOALSearching = false;
-
-        public MissileFire TargetMf = null;
-
         protected bool checkMiss = false;
-
-        private LineRenderer LR;
         protected string debugString = "";
         
         public string GetSubLabel()
@@ -598,8 +612,7 @@ namespace BahaTurret
                 LR.SetPosition(0, start);
                 LR.SetPosition(1, end);
             }
-        }
-        
+        }        
 
         protected void CheckDetonationDistance()
         {

@@ -189,7 +189,12 @@ namespace BahaTurret
         public string GetSubLabel()
         {
             return string.Empty;
-        }  
+        }
+
+        public string GetMissileType()
+        {
+            return string.Empty;
+        } 
                 
         #endregion
 
@@ -488,7 +493,6 @@ namespace BahaTurret
         public override void OnStart(StartState state)
         {
             base.OnStart(state);
-
 
             ParseWeaponType();
             ParseBulletDragType();

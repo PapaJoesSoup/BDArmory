@@ -20,9 +20,13 @@ namespace BahaTurret
          UI_Toggle(disabledText = "false", enabledText = "true")]
         public bool engageMissile = true;
 
-        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Engage Ground"),
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Engage Surface"),
          UI_Toggle(disabledText = "false", enabledText = "true")]
         public bool engageGround = true;
+
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Engage SLW"),
+        UI_Toggle(disabledText = "false", enabledText = "true")]
+        public bool engageSLW = true;
 
 
         [KSPEvent(guiActive = true, guiActiveEditor = true, guiName = "Engage Options", active = true)]
@@ -40,6 +44,8 @@ namespace BahaTurret
             Fields["engageMissile"].guiActiveEditor = _engageEnabled;
             Fields["engageGround"].guiActive = _engageEnabled;
             Fields["engageGround"].guiActiveEditor = _engageEnabled;
+            Fields["engageSLW"].guiActive = _engageEnabled;
+            Fields["engageSLW"].guiActiveEditor = _engageEnabled;
             Misc.RefreshAssociatedWindows(part);
         }
         public void OnRangeUpdated(BaseField field, object obj)
@@ -47,7 +53,6 @@ namespace BahaTurret
             // ensure max >= min
             if (engageRangeMax < engageRangeMin)
                 engageRangeMax = engageRangeMin;
-
         }
 
         protected void InitializeEngagementRange(float min, float max)
@@ -70,8 +75,7 @@ namespace BahaTurret
                 engageRangeMax = max;
             }
         }
-
-
+        
         //implementations from Interface
         public float GetEngagementRangeMin()
         {
@@ -96,6 +100,10 @@ namespace BahaTurret
         public bool GetEngageGroundTargets()
         {
             return engageGround;
+        }
+        public bool GetEngageSLWTargets()
+        {
+            return engageSLW;
         }
 
     }

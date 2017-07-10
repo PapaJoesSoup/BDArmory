@@ -6,8 +6,13 @@ namespace BahaTurret
     public interface IBDWeapon
     {
         WeaponClasses GetWeaponClass();
+
         string GetShortName();
+
         string GetSubLabel();
+
+        string GetMissileType();
+
         Part GetPart();
 
         // extensions for feature_engagementenvelope
@@ -24,6 +29,7 @@ namespace BahaTurret
         Bomb,
         Gun,
         Rocket,
-        DefenseLaser
+        DefenseLaser,
+        SLW
     }
 }

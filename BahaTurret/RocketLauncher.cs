@@ -110,6 +110,11 @@ namespace BahaTurret
             return string.Empty;
         }
 
+        public string GetMissileType()
+        {
+            return string.Empty;
+        }
+
 
         [KSPAction("Fire")]
         public void AGFire(KSPActionParam param)

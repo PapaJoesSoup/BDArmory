@@ -810,7 +810,7 @@ namespace BahaTurret
                     ml.rotaryRail = this;
 
                     ml.decoupleForward = false;
-                    ml.decoupleSpeed = Mathf.Max(ml.decoupleSpeed, 4);
+                    //ml.decoupleSpeed = Mathf.Max(ml.decoupleSpeed, 4); //removing clamp as some weapons want greater decouple speeds
                     ml.dropTime = Mathf.Max(ml.dropTime, 0.2f);
 
 
