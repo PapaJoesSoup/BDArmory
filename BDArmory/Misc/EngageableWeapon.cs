@@ -53,6 +53,9 @@ namespace BDArmory.Misc
             Fields["engageMissile"].guiActiveEditor = EngageEnabled;
             Fields["engageGround"].guiActive = EngageEnabled;
             Fields["engageGround"].guiActiveEditor = EngageEnabled;
+            Fields["engageSLW"].guiActive = EngageEnabled;
+            Fields["engageSLW"].guiActiveEditor = EngageEnabled;
+
             Misc.RefreshAssociatedWindows(part);
         }
         public void OnRangeUpdated(BaseField field, object obj)

@@ -18,8 +18,11 @@ BahaTurret/LocalDev/ksp_production_dir.txt
 BahaTurret/LocalDev/mono_exe.txt
 BahaTurret/LocalDev/pdb2mdb_exe.txt
 BahaTurret/BahaTurret.userprefs
+BahaTurret/bin/Release
 
 BDArmory/.vs
+BDArmory.Core/.vs
+
 BDArmory/obj
 BDArmory/bin/Debug/
 
@@ -31,6 +34,24 @@ BDArmory/LocalDev/ksp_production_dir.txt
 BDArmory/LocalDev/mono_exe.txt
 BDArmory/LocalDev/pdb2mdb_exe.txt
 BDArmory/BahaTurret.userprefs
+BDArmory/Distribution/GameData/BDArmory/Plugins/
+BDArmory/packages
+
+BDArmory.Core/obj/Debug/BDArmory.Core.csproj.FileListAbsolute.txt
+BDArmory.Core/obj/Release/BDArmory.Core.csproj.FileListAbsolute.txt
+BDArmory/bin/Debug
+BDArmory.Core/obj/
+BDArmory.Core/.vs
+BDArmory.Core/packages.config
+BDArmory/packages.config
+BDArmory.Multiplayer/obj
+BDArmory.Core/bin/Debug/Assembly-CSharp.dll
+BDArmory.Core/bin/Debug/BDArmory.Core.dll
+BDArmory.Core/bin/Debug/KSPAssets.dll
+BDArmory.Core/bin/Debug/UnityEngine.dll
+BahaTurret/BDArmory.sln.DotSettings.user
+BahaTurret/BDArmory.csproj.user
+BDArmory.Core/bin/Debug/UnityEngine.UI.dll
 
 
 #######################################
