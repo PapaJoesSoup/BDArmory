@@ -272,6 +272,35 @@ namespace BDArmory
                 RaycastHit hit;
                 if (Physics.Raycast(ray, out hit, dist, 557057))
                 {
+                    try
+                    {
+                        System.Collections.Generic.List<Vessel> vesselList = FlightGlobals.Vessels;
+                        Part kerbalPart = null;
+                        Debug.Log("Check 1 passed");
+                        foreach (Vessel vessel in vesselList)
+                        {
+                            System.Collections.Generic.List<Part> partList = vessel.parts;
+                            foreach (Part part in partList)
+                            {
+                                if (part.name.Contains("kerbalEVA"))
+                                {
+                                    kerbalPart = part;
+                                    Debug.Log("Check 2 passed");
+                                    break;
+                                }
+                            }
+                            if (kerbalPart != null) break;
+                        }
+                        Collider[] cols = kerbalPart.GetPartColliders();
+                        if (cols != null)
+                        {
+                            foreach (Collider c in cols)
+                                Debug.Log("Collider: " + c);
+                        }
+
+                    } catch (NullReferenceException)
+                    { }
+
                     bool penetrated = true;
                     Part hitPart = null; //determine when bullet collides with a target
                     try
