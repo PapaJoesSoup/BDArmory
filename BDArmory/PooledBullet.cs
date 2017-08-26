@@ -291,12 +291,13 @@ namespace BDArmory
                             }
                             if (kerbalPart != null) break;
                         }
-                        Collider[] cols = kerbalPart.GetPartColliders();
-                        if (cols != null)
-                        {
-                            foreach (Collider c in cols)
-                                Debug.Log("Collider: " + c);
-                        }
+                        //collider[] cols = kerbalpart.getpartcolliders();
+                        //if (cols != null)
+                        //{
+                        //    foreach (collider c in cols)
+                        //        debug.log("collider: " + c);
+                        //}
+                        Debug.Log("Collider? " + kerbalPart.collider.ToString());
 
                     } catch (NullReferenceException)
                     { }
