@@ -27,3 +27,13 @@ C:\Users\jesus\Source\Repos\BDArmory_JRODRIGV\BDArmory\obj\Release\BDArmory.cspr
 C:\Users\jesus\Source\Repos\BDArmory_JRODRIGV\BDArmory\obj\Release\BDArmory.dll
 C:\Users\jesus\Source\Repos\BDArmory_JRODRIGV\BDArmory\bin\Release\BDArmory.Core.dll
 C:\Users\jesus\Source\Repos\BDArmory_JRODRIGV\BDArmory\bin\Release\BDArmory.Core.pdb
+C:\Users\Designer225\Documents\GitHub\BDArmory\BDArmory\bin\Release\BDArmory.dll
+C:\Users\Designer225\Documents\GitHub\BDArmory\BDArmory\bin\Release\Assembly-CSharp.dll
+C:\Users\Designer225\Documents\GitHub\BDArmory\BDArmory\bin\Release\BDArmory.Core.dll
+C:\Users\Designer225\Documents\GitHub\BDArmory\BDArmory\bin\Release\KSPAssets.dll
+C:\Users\Designer225\Documents\GitHub\BDArmory\BDArmory\bin\Release\UnityEngine.dll
+C:\Users\Designer225\Documents\GitHub\BDArmory\BDArmory\bin\Release\UnityEngine.UI.dll
+C:\Users\Designer225\Documents\GitHub\BDArmory\BDArmory\bin\Release\Assembly-CSharp-firstpass.dll
+C:\Users\Designer225\Documents\GitHub\BDArmory\BDArmory\bin\Release\BDArmory.Core.pdb
+C:\Users\Designer225\Documents\GitHub\BDArmory\BDArmory\obj\Release\BDArmory.csprojResolveAssemblyReference.cache
+C:\Users\Designer225\Documents\GitHub\BDArmory\BDArmory\obj\Release\BDArmory.dll
