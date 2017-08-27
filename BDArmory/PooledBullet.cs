@@ -162,7 +162,7 @@ namespace BDArmory
                 bulletTrail.material = new Material(bulletShader);
 
                 randomWidthScale = UnityEngine.Random.Range(0.5f, 1f);
-                gameObject.layer = 15;
+                gameObject.layer = 17;
             }
 
             bulletTrail.material.mainTexture = GameDatabase.Instance.GetTexture(bulletTexturePath, false);
@@ -270,37 +270,57 @@ namespace BDArmory
 
                 Ray ray = new Ray(prevPosition, currPosition - prevPosition);
                 RaycastHit hit;
-                if (Physics.Raycast(ray, out hit, dist, 557057))
+                if (Physics.Raycast(ray, out hit, dist, 2228224))
                 {
+                    KerbalEVA hitPart = null; //determine when bullet collides with a target
                     try
                     {
-                        System.Collections.Generic.List<Vessel> vesselList = FlightGlobals.Vessels;
-                        Part kerbalPart = null;
-                        Debug.Log("Check 1 passed");
-                        foreach (Vessel vessel in vesselList)
-                        {
-                            System.Collections.Generic.List<Part> partList = vessel.parts;
-                            foreach (Part part in partList)
-                            {
-                                if (part.name.Contains("kerbalEVA"))
-                                {
-                                    kerbalPart = part;
-                                    Debug.Log("Check 2 passed");
-                                    break;
-                                }
-                            }
-                            if (kerbalPart != null) break;
-                        }
-                        //collider[] cols = kerbalpart.getpartcolliders();
-                        //if (cols != null)
-                        //{
-                        //    foreach (collider c in cols)
-                        //        debug.log("collider: " + c);
-                        //}
-                        Debug.Log("Collider? " + kerbalPart.collider.ToString());
-
+                        hitPart = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+                        if (hitPart != null)
+                            Debug.Log("Hit on kerbal confirmed!");
                     } catch (NullReferenceException)
-                    { }
+                    {
+                        Debug.Log("Whoops ran amok of the exception handler");
+                    }
+                }
+                //gameObject.layer = 15;
+
+                if (Physics.Raycast(ray, out hit, dist, 557057))
+                {
+                    //int oldLayer = gameObject.layer;
+                    //try
+                    //{
+                    //    System.Collections.Generic.List<Vessel> vesselList = FlightGlobals.Vessels;
+                    //    Part kerbalPart = null;
+                    //    Debug.Log("Check 1 passed");
+                    //    foreach (Vessel vessel in vesselList)
+                    //    {
+                    //        System.Collections.Generic.List<Part> partList = vessel.parts;
+                    //        foreach (Part part in partList)
+                    //        {
+                    //            if (part.name.Contains("kerbalEVA"))
+                    //            {
+                    //                kerbalPart = part;
+                    //                Debug.Log("Check 2 passed");
+                    //                break;
+                    //            }
+                    //        }
+                    //        if (kerbalPart != null) break;
+                    //    }
+                    //    PartModule kerbalModule = kerbalPart.Modules[0];
+                    //    int kerbalLayer = kerbalModule.gameObject.layer;
+                    //    Debug.Log("Kerbal layer: " + kerbalLayer);
+
+                    //    gameObject.layer = 17;
+                    //    KerbalEVA hitKerbal = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+                    //    if (hitKerbal != null)
+                    //        Debug.Log("Kerbal is hit with the projectile!");
+
+                    //} catch (NullReferenceException)
+                    //{
+                    //    Debug.Log("Error exception occurred!");
+                    //}
+                    //gameObject.layer = oldLayer;
 
                     bool penetrated = true;
                     Part hitPart = null; //determine when bullet collides with a target
