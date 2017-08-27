@@ -212,7 +212,40 @@ namespace BDArmory.Parts
                 float dist = (currPosition - prevPosition).magnitude;
                 Ray ray = new Ray(prevPosition, currPosition - prevPosition);
                 RaycastHit hit;
-                if (Physics.Raycast(ray, out hit, dist, 557057))
+                KerbalEVA hitEVA = null;
+                if (Physics.Raycast(ray, out hit, dist, 2228224))
+                {
+                    try
+                    {
+                        hitEVA = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+                        if (hitEVA != null)
+                            Debug.Log("Hit on kerbal confirmed!");
+                    }
+                    catch (NullReferenceException)
+                    {
+                        Debug.Log("Whoops ran amok of the exception handler");
+                    }
+
+                    Part hitPart = hitEVA.part;
+
+                    float destroyChance = (rb.mass / hitPart.crashTolerance) *
+                                              (rb.velocity - hit.rigidbody.velocity).magnitude * 8000;
+                    if (BDArmorySettings.INSTAKILL)
+                    {
+                        destroyChance = 100;
+                    }
+                    Debug.Log("[BDArmory]: Hit part: " + hitPart.name + ", chance of destroy: " + destroyChance);
+                    if (UnityEngine.Random.Range(0f, 100f) < destroyChance)
+                    {
+                        hitPart.SetDamage(hitPart.maxTemp + 100);
+                    }
+                    if (hitPart.vessel != sourceVessel)
+                    {
+                        Detonate(hit.point);
+                    }
+                }
+
+                if (!hitEVA && Physics.Raycast(ray, out hit, dist, 557057))
                 {
                     Part hitPart = null;
                     try
@@ -296,6 +329,11 @@ namespace BDArmory.Parts
                 float dist = (currPosition - prevPosition).magnitude;
                 Ray ray = new Ray(prevPosition, currPosition - prevPosition);
                 RaycastHit hit;
+                if (Physics.Raycast(ray, out hit, dist, 2228224))
+                {
+                    Destroy(gameObject);
+                    return;
+                }
                 if (Physics.Raycast(ray, out hit, dist, 557057))
                 {
                     Destroy(gameObject);

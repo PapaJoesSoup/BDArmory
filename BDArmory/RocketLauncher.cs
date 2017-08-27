@@ -961,26 +961,49 @@ namespace BDArmory
                 float dist = (currPosition - prevPosition).magnitude;
                 Ray ray = new Ray(prevPosition, currPosition - prevPosition);
                 RaycastHit hit;
-                if (Physics.Raycast(ray, out hit, dist, 557057))
+                KerbalEVA hitEVA = null;
+                if (Physics.Raycast(ray, out hit, dist, 2228224))
                 {
-                    Part hitPart = null;
                     try
                     {
-                        hitPart = hit.collider.gameObject.GetComponentInParent<Part>();
+                        hitEVA = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+                        if (hitEVA != null)
+                            Debug.Log("Hit on kerbal confirmed!");
                     }
                     catch (NullReferenceException)
                     {
+                        Debug.Log("Whoops ran amok of the exception handler");
                     }
 
-
-                    if (hitPart == null || (hitPart != null && hitPart.vessel != sourceVessel))
+                    if (hitEVA && hitEVA.part.vessel != sourceVessel)
                     {
                         Detonate(hit.point);
                     }
                 }
-                else if (FlightGlobals.getAltitudeAtPos(transform.position) < 0)
+
+                if (!hitEVA)
                 {
-                    Detonate(transform.position);
+                    if (Physics.Raycast(ray, out hit, dist, 557057))
+                    {
+                        Part hitPart = null;
+                        try
+                        {
+                            hitPart = hit.collider.gameObject.GetComponentInParent<Part>();
+                        }
+                        catch (NullReferenceException)
+                        {
+                        }
+
+
+                        if (hitPart == null || (hitPart != null && hitPart.vessel != sourceVessel))
+                        {
+                            Detonate(hit.point);
+                        }
+                    }
+                    else if (FlightGlobals.getAltitudeAtPos(transform.position) < 0)
+                    {
+                        Detonate(transform.position);
+                    }
                 }
             }
             else if (FlightGlobals.getAltitudeAtPos(currPosition) <= 0)
