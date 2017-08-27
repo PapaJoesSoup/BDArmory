@@ -136,6 +136,7 @@ BDArmory/LocalDev/Refs/KSPAssets.dll
 BDArmory/LocalDev/Refs/Assembly-CSharp.dll
 BDArmory/LocalDev/Refs/Assembly-CSharp-firstpass.dll
 BDArmory/LocalDev/Refs/UnityEngine.dll
+<<<<<<< HEAD
 BDArmory.Core/bin/Release/Assembly-CSharp.dll
 BDArmory.Core/bin/Release/BDArmory.Core.dll
 BDArmory.Core/bin/Release/KSPAssets.dll
@@ -153,3 +154,8 @@ BDArmory/bin/Release/UnityEngine.UI.dll
 BDArmory/obj/Release/BDArmory.csproj.FileListAbsolute.txt
 BDArmory.Core/obj/Release/BDArmory.Core.csproj.FileListAbsolute.txt
 BDArmory.Core/obj/Release/BDArmory.Core.csproj.FileListAbsolute.txt
+=======
+/BDArmory/UpgradeLog3.htm
+/BDArmory/UpgradeLog2.htm
+/BDArmory/UpgradeLog.htm
+>>>>>>> 4fb2be7cd359852701b1c2f45c3b9191f72a5a7b
