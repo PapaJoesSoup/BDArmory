@@ -48,7 +48,7 @@ namespace BDArmory
 			targetInfo = v.gameObject.GetComponent<TargetInfo> ();
 
             // vessel never been picked up on radar before: create new targetinfo record
-            if (targetInfo is null)
+            if (targetInfo == null)
             {
                 targetInfo = v.gameObject.AddComponent<TargetInfo>();
             }

@@ -225,7 +225,9 @@ namespace BDArmory
 
         public GPSTargetInfo designatedGPSInfo;
 
+        private Vector3 floatingorigin_previous;
         #endregion
+
 
         [KSPAction("Fire Missile")]
         public void AGFire(KSPActionParam param)
@@ -813,13 +815,22 @@ namespace BDArmory
 
 			if(TimeIndex > 1f && vessel.srfSpeed > part.crashTolerance)
 			{
+                Vector3 floatingorigin_current = FloatingOrigin.Offset;
+                bool floatingorigin_hasshifted = false;
+
+                if ((floatingorigin_previous != Vector3.zero) && (floatingorigin_current - floatingorigin_previous).sqrMagnitude > 100)
+                {
+                    floatingorigin_hasshifted = true;
+                }
+                floatingorigin_previous = floatingorigin_current;
+
 				RaycastHit lineHit;
-				if(Physics.Linecast(part.transform.position, previousPos, out lineHit, 557057))
+				if((!floatingorigin_hasshifted) && Physics.Linecast(part.transform.position, previousPos, out lineHit, 557057))
 				{
 					if(lineHit.collider.GetComponentInParent<Part>() != part)
 					{
 						Debug.Log("[BDArmory]:" + part.partInfo.title + " linecast hit on " + (lineHit.collider.attachedRigidbody ? lineHit.collider.attachedRigidbody.gameObject.name : lineHit.collider.gameObject.name));
-						part.SetDamage(part.maxTemp + 100);
+                        part.SetDamage(part.maxTemp + 100);
 					}
 				}
 			}
