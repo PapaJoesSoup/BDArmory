@@ -17,7 +17,7 @@ namespace BDArmory.Core
 
         public static void Register<T>(object obj)
         {
-            if (obj is null)
+            if (obj == null)
             {
                 throw new NullReferenceException("Registering null constant");
             }
@@ -30,7 +30,8 @@ namespace BDArmory.Core
         public static T Get<T>() where T : class
         {
             Type type = typeof(T);
-            Systems.TryGetValue(type, out var instance);
+            Object instance;
+            Systems.TryGetValue(type, out instance);
 
             if (instance == null)
             {
