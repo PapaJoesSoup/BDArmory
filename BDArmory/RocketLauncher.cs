@@ -628,9 +628,9 @@ namespace BDArmory
                     pointPositions.Add(simCurrPos);
                     if (!mouseAiming && !slaved)
                     {
-                        if (simTime > 0.1f &&
+                        if (simTime > 0.1f && (Physics.Raycast(simPrevPos,simCurrPos-simPrevPos, out hit, Vector3.Distance(simPrevPos, simStartPos), 2228224) ||
                             Physics.Raycast(simPrevPos, simCurrPos - simPrevPos, out hit,
-                                Vector3.Distance(simPrevPos, simCurrPos), 557057))
+                                Vector3.Distance(simPrevPos, simCurrPos), 557057)))
                         {
                             rocketPrediction = hit.point;
                             simulating = false;
@@ -698,7 +698,8 @@ namespace BDArmory
             {
                 RaycastHit hit;
                 float distance = 2500;
-                if (Physics.Raycast(transform.position, transform.forward, out hit, distance, 557057))
+                if (Physics.Raycast(transform.position, transform.forward, out hit, distance, 2228224) || 
+                    Physics.Raycast(transform.position, transform.forward, out hit, distance, 557057))
                 {
                     rocketPrediction = hit.point;
                 }

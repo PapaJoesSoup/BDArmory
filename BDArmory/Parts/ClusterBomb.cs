@@ -329,12 +329,7 @@ namespace BDArmory.Parts
                 float dist = (currPosition - prevPosition).magnitude;
                 Ray ray = new Ray(prevPosition, currPosition - prevPosition);
                 RaycastHit hit;
-                if (Physics.Raycast(ray, out hit, dist, 2228224))
-                {
-                    Destroy(gameObject);
-                    return;
-                }
-                if (Physics.Raycast(ray, out hit, dist, 557057))
+                if (Physics.Raycast(ray, out hit, dist, 2228224) || Physics.Raycast(ray, out hit, dist, 557057))
                 {
                     Destroy(gameObject);
                 }

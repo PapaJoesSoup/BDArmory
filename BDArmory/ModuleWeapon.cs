@@ -1518,7 +1518,18 @@ namespace BDArmory
                     0);
                 Ray ray = FlightCamera.fetch.mainCamera.ViewportPointToRay(mouseAim);
                 RaycastHit hit;
-                if (Physics.Raycast(ray, out hit, maxTargetingRange, 557057))
+                KerbalEVA hitEVA = null;
+                if (Physics.Raycast(ray, out hit, maxTargetingRange, 2228224))
+                {
+                    targetPosition = hit.point;
+
+                    hitEVA = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+                    if (hitEVA && hitEVA.part.vessel && hitEVA.part.vessel == vessel)
+                    {
+                        targetPosition = ray.direction * maxTargetingRange + FlightCamera.fetch.mainCamera.transform.position;
+                    }
+                }
+                if (!hitEVA && Physics.Raycast(ray, out hit, maxTargetingRange, 557057))
                 {
                     targetPosition = hit.point;
 
@@ -1683,7 +1694,7 @@ namespace BDArmory
                 {
                     Ray ray = new Ray(fireTransform.position, fireTransform.forward);
                     RaycastHit rayHit;
-                    if (Physics.Raycast(ray, out rayHit, maxTargetingRange, 557057))
+                    if (Physics.Raycast(ray, out rayHit, maxTargetingRange, 2228224) || Physics.Raycast(ray, out rayHit, maxTargetingRange, 557057))
                     {
                         bulletPrediction = rayHit.point;
                     }
@@ -1714,7 +1725,24 @@ namespace BDArmory
                         if (bulletDrop) simVelocity += FlightGlobals.getGeeForceAtPosition(simCurrPos) * simDeltaTime;
                         simCurrPos += simVelocity * simDeltaTime;
                         pointPositions.Add(simCurrPos);
-                        if (Physics.Raycast(simPrevPos, simCurrPos - simPrevPos, out hit,
+                        
+                        if (Physics.Raycast(simPrevPos, simCurrPos - simPrevPos, out hit, Vector3.Distance(simPrevPos, simCurrPos), 2228224))
+                        {
+                            Vessel hitVessel = null;
+                            try
+                            {
+                                hitVessel = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>().part.vessel;
+                            } catch (NullReferenceException)
+                            {
+                            }
+
+                            if (!hitVessel || (hitVessel && hitVessel == vessel))
+                            {
+                                bulletPrediction = hit.point;
+                                simulating = false;
+                            }
+                        }
+                        if (simulating && Physics.Raycast(simPrevPos, simCurrPos - simPrevPos, out hit,
                             Vector3.Distance(simPrevPos, simCurrPos), 557057))
                         {
                             Vessel hitVessel = null;
