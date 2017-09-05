@@ -219,11 +219,11 @@ namespace BDArmory.Parts
                     {
                         hitEVA = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
                         if (hitEVA != null)
-                            Debug.Log("Hit on kerbal confirmed!");
+                            Debug.Log("[BDArmory]:Hit on kerbal confirmed!");
                     }
                     catch (NullReferenceException)
                     {
-                        Debug.Log("Whoops ran amok of the exception handler");
+                        Debug.Log("[BDArmory]:Whoops ran amok of the exception handler");
                     }
 
                     Part hitPart = hitEVA.part;

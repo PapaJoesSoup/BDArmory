@@ -108,6 +108,7 @@ namespace BDArmory.FX
             pe.Dispose();
 
             DoExplosionDamage(position, power, heat, radius, sourceVessel);
+
         }
 
         public static float ExplosionHeatMultiplier = 4200;
@@ -127,11 +128,11 @@ namespace BDArmory.FX
                 {
                     hitEVA = rayHit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
                     if (hitEVA != null)
-                        Debug.Log("Hit on kerbal confirmed!");
+                        Debug.Log("[BDArmory]:Hit on kerbal confirmed!");
                 }
                 catch (System.NullReferenceException)
                 {
-                    Debug.Log("Whoops ran amok of the exception handler");
+                    Debug.Log("[BDArmory]:Whoops ran amok of the exception handler");
                 }
 
                 Part part = hitEVA.part;
@@ -272,32 +273,46 @@ namespace BDArmory.FX
             #endregion
 
             // this replaces 2 passes through the vessels list and 2 passes through the parts lists with a single pass, and eliminates boxing and unboxing performed by linq and foreach loops.  Should be faster, with better gc
-            List<Vessel>.Enumerator v = BDATargetManager.LoadedVessels.GetEnumerator();
-		    while (v.MoveNext())
-		    {
-		        if (v.Current == null) continue;
-                if (!v.Current.loaded || v.Current.packed || (v.Current.CoM - position).magnitude >= maxDistance * 4) continue;
-		        List<Part>.Enumerator p = v.Current.parts.GetEnumerator();
-		        while (p.MoveNext())
-		        {
-		            if (p.Current == null) continue;
-		            if ((p.Current.transform.position - position).magnitude >= maxDistance) continue;
-		            DoExplosionRay(new Ray(position, p.Current.transform.TransformPoint(p.Current.CoMOffset) - position), power, heat, maxDistance, ref ignoreParts, ref ignoreBuildings, sourceVessel);
-		        }
-                p.Dispose();
-		    }
-            v.Dispose();
+            try
+            {
+                List<Vessel>.Enumerator v = BDATargetManager.LoadedVessels.GetEnumerator();
+                while (v.MoveNext())
+                {
+                    if (v.Current == null) continue;
+                    if (!v.Current.loaded || v.Current.packed || (v.Current.CoM - position).magnitude >= maxDistance * 4) continue;
+                    List<Part>.Enumerator p = v.Current.parts.GetEnumerator();
+                    while (p.MoveNext())
+                    {
+                        if (p.Current == null) continue;
+                        if ((p.Current.transform.position - position).magnitude >= maxDistance) continue;
+                        DoExplosionRay(new Ray(position, p.Current.transform.TransformPoint(p.Current.CoMOffset) - position), power, heat, maxDistance, ref ignoreParts, ref ignoreBuildings, sourceVessel);
+                    }
+                    p.Dispose();
+                }
+                v.Dispose();
+            }
+            catch (System.NullReferenceException)
+            {
+                Debug.Log("[BDArmory]:Whoops ran afoul of the exception filter");
+            }
 
-		    List<DestructibleBuilding>.Enumerator bldg = BDATargetManager.LoadedBuildings.GetEnumerator();
-			while(bldg.MoveNext())
-			{
-				if(bldg.Current == null) continue;
-				if((bldg.Current.transform.position - position).magnitude < maxDistance * 1000)
-				{
-					DoExplosionRay(new Ray(position, bldg.Current.transform.position - position), power, heat, maxDistance, ref ignoreParts, ref ignoreBuildings);
-				}
-			}
-            bldg.Dispose();
+            try
+            {
+                List<DestructibleBuilding>.Enumerator bldg = BDATargetManager.LoadedBuildings.GetEnumerator();
+                while (bldg.MoveNext())
+                {
+                    if (bldg.Current == null) continue;
+                    if ((bldg.Current.transform.position - position).magnitude < maxDistance * 1000)
+                    {
+                        DoExplosionRay(new Ray(position, bldg.Current.transform.position - position), power, heat, maxDistance, ref ignoreParts, ref ignoreBuildings);
+                    }
+                }
+                bldg.Dispose();
+            }
+            catch (System.NullReferenceException)
+            {
+                Debug.Log("[BDArmory]:Whoops ran afoul of the exception filter");
+            }
 		}
 	}
 }
