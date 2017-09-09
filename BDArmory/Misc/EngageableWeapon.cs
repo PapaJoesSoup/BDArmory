@@ -2,7 +2,8 @@ namespace BDArmory.Misc
 {
     public abstract class EngageableWeapon : PartModule, IEngageService
     {
-        public bool EngageEnabled = true;
+        [KSPField(isPersistant = true)]
+        public bool engageEnabled = true;
         // Weapon usage settings
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Engage Range Min"),
          UI_FloatRange(minValue = 0f, maxValue = 5000f, stepIncrement = 100f, scene = UI_Scene.Editor)]
@@ -28,13 +29,13 @@ namespace BDArmory.Misc
         UI_Toggle(disabledText = "false", enabledText = "true")]
         public bool engageSLW = true;
 
-        [KSPEvent(guiActive = true, guiActiveEditor = true, guiName = "Disable Engage Options", active = true)]
+        [KSPEvent( guiActive = true, guiActiveEditor = true, guiName = "Disable Engage Options", active = true)]
         public void ToggleEngageOptions()
         {
             
-            EngageEnabled = !EngageEnabled;
+            engageEnabled = !engageEnabled;
 
-            if (EngageEnabled == false)
+            if (engageEnabled == false)
             {
                 Events["ToggleEngageOptions"].guiName = "Enable Engage Options";        
             }
@@ -43,18 +44,18 @@ namespace BDArmory.Misc
                 Events["ToggleEngageOptions"].guiName = "Disable Engage Options";
             }
             
-            Fields["engageRangeMin"].guiActive = EngageEnabled;
-            Fields["engageRangeMin"].guiActiveEditor = EngageEnabled;
-            Fields["engageRangeMax"].guiActive = EngageEnabled;
-            Fields["engageRangeMax"].guiActiveEditor = EngageEnabled;
-            Fields["engageAir"].guiActive = EngageEnabled;
-            Fields["engageAir"].guiActiveEditor = EngageEnabled;
-            Fields["engageMissile"].guiActive = EngageEnabled;
-            Fields["engageMissile"].guiActiveEditor = EngageEnabled;
-            Fields["engageGround"].guiActive = EngageEnabled;
-            Fields["engageGround"].guiActiveEditor = EngageEnabled;
-            Fields["engageSLW"].guiActive = EngageEnabled;
-            Fields["engageSLW"].guiActiveEditor = EngageEnabled;
+            Fields["engageRangeMin"].guiActive = engageEnabled;
+            Fields["engageRangeMin"].guiActiveEditor = engageEnabled;
+            Fields["engageRangeMax"].guiActive = engageEnabled;
+            Fields["engageRangeMax"].guiActiveEditor = engageEnabled;
+            Fields["engageAir"].guiActive = engageEnabled;
+            Fields["engageAir"].guiActiveEditor = engageEnabled;
+            Fields["engageMissile"].guiActive = engageEnabled;
+            Fields["engageMissile"].guiActiveEditor = engageEnabled;
+            Fields["engageGround"].guiActive = engageEnabled;
+            Fields["engageGround"].guiActiveEditor = engageEnabled;
+            Fields["engageSLW"].guiActive = engageEnabled;
+            Fields["engageSLW"].guiActiveEditor = engageEnabled;
 
             Misc.RefreshAssociatedWindows(part);
         }
@@ -71,11 +72,13 @@ namespace BDArmory.Misc
             UI_FloatRange rangeMin = (UI_FloatRange)Fields["engageRangeMin"].uiControlEditor;
             rangeMin.minValue = min;
             rangeMin.maxValue = max;
+            rangeMin.stepIncrement = (max - min) / 100f;
             rangeMin.onFieldChanged = OnRangeUpdated;
 
             UI_FloatRange rangeMax = (UI_FloatRange)Fields["engageRangeMax"].uiControlEditor;
             rangeMax.minValue = min;
             rangeMax.maxValue = max;
+            rangeMax.stepIncrement = (max - min) / 100f;
             rangeMax.onFieldChanged = OnRangeUpdated;
 
             if ((engageRangeMin == 0) && (engageRangeMax == 0))

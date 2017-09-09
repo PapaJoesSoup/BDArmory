@@ -1,4 +1,5 @@
 using System;
+using BDArmory.Core.Extension;
 using BDArmory.CounterMeasure;
 using BDArmory.Misc;
 using BDArmory.Radar;
@@ -36,7 +37,7 @@ namespace BDArmory
 		{
 			orbital = false;
 			orbit = null;
-			velocity = v.srf_velocity;
+			velocity = v.Velocity();
 
 			vessel = v;
 			geoPos =  VectorUtils.WorldPositionToGeoCoords(v.CoM, v.mainBody);

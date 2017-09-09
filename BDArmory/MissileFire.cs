@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using BDArmory.Control;
+using BDArmory.Core.Extension;
 using BDArmory.CounterMeasure;
 using BDArmory.Misc;
 using BDArmory.Parts;
@@ -3142,7 +3143,7 @@ namespace BDArmory
             // Part 2: check weapons against individual target types
             // ------
 
-            float distance = Vector3.Distance(transform.position + vessel.srf_velocity, target.position + target.velocity);
+            float distance = Vector3.Distance(transform.position + vessel.Velocity(), target.position + target.velocity);
             IBDWeapon targetWeapon = null;
             float targetWeaponRPM = 0;
             float targetWeaponTDPS = 0;
@@ -3451,7 +3452,7 @@ namespace BDArmory
             EngageableWeapon engageableWeapon = weaponCandidate as EngageableWeapon;
 
             if (engageableWeapon == null) return true;
-            if (!engageableWeapon.EngageEnabled) return true;
+            if (!engageableWeapon.engageEnabled) return true;
             if (distanceToTarget < engageableWeapon.GetEngagementRangeMin()) return false;
             if (distanceToTarget > engageableWeapon.GetEngagementRangeMax()) return false;
 
@@ -3506,7 +3507,7 @@ namespace BDArmory
                     }
 
                     // check DLZ
-                    MissileLaunchParams dlz = MissileLaunchParams.GetDynamicLaunchParams(ml, guardTarget.srf_velocity, guardTarget.transform.position);
+                    MissileLaunchParams dlz = MissileLaunchParams.GetDynamicLaunchParams(ml, guardTarget.Velocity(), guardTarget.transform.position);
                     if (vessel.srfSpeed > ml.minLaunchSpeed && distanceToTarget < dlz.maxLaunchRange && distanceToTarget > dlz.minLaunchRange)
                     {
                             return true;
@@ -3913,7 +3914,7 @@ namespace BDArmory
 
                             float targetAngle = Vector3.Angle(-transform.forward, guardTarget.transform.position - transform.position);
                             float targetDistance = Vector3.Distance(currentTarget.position, transform.position);
-                            MissileLaunchParams dlz = MissileLaunchParams.GetDynamicLaunchParams(CurrentMissile, guardTarget.srf_velocity, guardTarget.CoM);
+                            MissileLaunchParams dlz = MissileLaunchParams.GetDynamicLaunchParams(CurrentMissile, guardTarget.Velocity(), guardTarget.CoM);
 
                             if (targetAngle > guardAngle / 2) //dont fire yet if target out of guard angle
                             {
@@ -4425,7 +4426,7 @@ namespace BDArmory
             Vector3 prevPos = ml.MissileReferenceTransform.position;
             Vector3 currPos = ml.MissileReferenceTransform.position;
             //Vector3 simVelocity = vessel.rb_velocity;
-            Vector3 simVelocity = vessel.srf_velocity; //Issue #92
+            Vector3 simVelocity = vessel.Velocity(); //Issue #92
 
             MissileLauncher launcher = ml as MissileLauncher;
             if (launcher != null)

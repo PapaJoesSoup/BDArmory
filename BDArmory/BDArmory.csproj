@@ -64,7 +64,7 @@
     <Compile Include="Parts\MissileBase.cs" />
     <Compile Include="UI\BDAWindowSettingsField.cs" />
     <Compile Include="Armor\BulletInfo.cs" />
-    <Compile Include="MissileLauncher.cs" />
+    <Compile Include="Parts\MissileLauncher.cs" />
     <Compile Include="Misc\Misc.cs" />
     <Compile Include="FX\ShellCasing.cs" />
     <Compile Include="UI\BDArmorySettings.cs" />

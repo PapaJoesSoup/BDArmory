@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using BDArmory.Core.Extension;
 using BDArmory.Parts;
 using BDArmory.UI;
 using UnityEngine;
@@ -44,7 +45,7 @@ namespace BDArmory
             get
             {
                 if (!vessel) return false;
-                if (vessel.situation == Vessel.Situations.FLYING ) return true;
+                if (vessel.situation == Vessel.Situations.FLYING || vessel.InOrbit()) return true;
                 else
                     return false;
             }
@@ -83,7 +84,7 @@ namespace BDArmory
 			get
 			{
 				if(!vessel) return Vector3.zero;
-				return vessel.srf_velocity;
+				return vessel.Velocity();
 			}
 		}
 

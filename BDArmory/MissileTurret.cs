@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using BDArmory.Parts;
 using BDArmory.Radar;
 using UniLinq;
 using UnityEngine;
@@ -579,7 +580,7 @@ namespace BDArmory
 
                 Vector3 projPos = Vector3.Project(ml.vessel.transform.position - ray.origin, ray.direction) + ray.origin;
                 Vector3 railVel = part.rb.GetPointVelocity(projPos);
-                //Vector3 projVel = Vector3.Project(ml.vessel.srf_velocity-railVel, ray.direction);
+                //Vector3 projVel = Vector3.Project(ml.vessel.Velocity-railVel, ray.direction);
 
                 ml.vessel.SetPosition(projPos);
                 ml.vessel.SetWorldVelocity(railVel + (forwardSpeed*ray.direction));

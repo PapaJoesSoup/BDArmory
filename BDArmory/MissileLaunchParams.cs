@@ -1,4 +1,5 @@
-﻿using BDArmory.Parts;
+﻿using BDArmory.Core.Extension;
+using BDArmory.Parts;
 using BDArmory.UI;
 using UnityEngine;
 
@@ -38,7 +39,7 @@ namespace BDArmory
 		/// <param name="targetVelocity">Target velocity.</param>
 		public static MissileLaunchParams GetDynamicLaunchParams(MissileBase missile, Vector3 targetVelocity, Vector3 targetPosition)
 		{
-			Vector3 launcherVelocity = missile.vessel.srf_velocity;
+			Vector3 launcherVelocity = missile.vessel.Velocity();
 			float launcherSpeed = (float)missile.vessel.srfSpeed;
 			float minLaunchRange = missile.minStaticLaunchRange;
 			float maxLaunchRange = missile.maxStaticLaunchRange;

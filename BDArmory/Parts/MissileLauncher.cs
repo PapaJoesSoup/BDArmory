@@ -5,13 +5,12 @@ using System.Text;
 using BDArmory.Core.Extension;
 using BDArmory.FX;
 using BDArmory.Misc;
-using BDArmory.Parts;
 using BDArmory.Radar;
 using BDArmory.UI;
 using UniLinq;
 using UnityEngine;
 
-namespace BDArmory
+namespace BDArmory.Parts
 {	
 	public class MissileLauncher : MissileBase
     {
@@ -222,6 +221,10 @@ namespace BDArmory
         //ballistic options
         [KSPField]
         public bool indirect = false;
+
+        [KSPField]
+        public bool vacuumSteerable = true;
+
 
         public GPSTargetInfo designatedGPSInfo;
 
@@ -509,6 +512,12 @@ namespace BDArmory
                 Fields["maxAltitude"].guiActive = false;
                 Fields["maxAltitude"].guiActiveEditor = false;
             }
+		    if (GuidanceMode != GuidanceModes.AGMBallistic)
+		    {
+		        Fields["BallisticOverShootFactor"].guiActive = false;
+		        Fields["BallisticOverShootFactor"].guiActiveEditor = false;
+		    }
+
 
             if (part.partInfo.title.Contains("Bomb"))
 			{
@@ -755,13 +764,13 @@ namespace BDArmory
 
 				//flybyaudio
 				float mCamDistanceSqr = (FlightCamera.fetch.mainCamera.transform.position-transform.position).sqrMagnitude;
-				float mCamRelVSqr = (float)(FlightGlobals.ActiveVessel.srf_velocity-vessel.srf_velocity).sqrMagnitude;
+				float mCamRelVSqr = (float)(FlightGlobals.ActiveVessel.Velocity() - vessel.Velocity()).sqrMagnitude;
 				if(!hasPlayedFlyby 
 				   && FlightGlobals.ActiveVessel != vessel 
 				   && FlightGlobals.ActiveVessel != SourceVessel 
 				   && mCamDistanceSqr < 400*400 && mCamRelVSqr > 300*300  
 				   && mCamRelVSqr < 800*800 
-					&& Vector3.Angle(vessel.srf_velocity, FlightGlobals.ActiveVessel.transform.position-transform.position)<60)
+					&& Vector3.Angle(vessel.Velocity(), FlightGlobals.ActiveVessel.transform.position-transform.position)<60)
 				{
 					sfAudioSource.PlayOneShot (GameDatabase.Instance.GetAudioClip("BDArmory/Sounds/missileFlyby"));	
 					hasPlayedFlyby = true;
@@ -853,7 +862,7 @@ namespace BDArmory
             //kill guidance if missileBase has missed
             if (!HasMissed && checkMiss)
             {
-                bool noProgress = MissileState == MissileStates.PostThrust && (Vector3.Dot(vessel.srf_velocity - TargetVelocity, TargetPosition - vessel.transform.position) < 0);
+                bool noProgress = MissileState == MissileStates.PostThrust && (Vector3.Dot(vessel.Velocity() - TargetVelocity, TargetPosition - vessel.transform.position) < 0);
                 if (Vector3.Dot(TargetPosition - transform.position, transform.forward) < 0 || noProgress)                
                 {
                     Debug.Log("[BDArmory]: Missile has missed!");
@@ -926,17 +935,22 @@ namespace BDArmory
 				{
 					controlAuthority = Mathf.Clamp01(atmosMultiplier);
 				}
+
+			    if (vacuumSteerable)
+			    {
+			        controlAuthority = 1;
+			    }
+
 				debugString += "\ncontrolAuthority: "+controlAuthority;
 
 				if(guidanceActive)// && timeIndex - dropTime > 0.5f)
 				{
 					WarnTarget();
-					Vector3 targetPosition = Vector3.zero;
 
 					if(legacyTargetVessel && legacyTargetVessel.loaded)
 					{
 						Vector3 targetCoMPos = legacyTargetVessel.CoM;
-						targetPosition = targetCoMPos+legacyTargetVessel.srf_velocity*Time.fixedDeltaTime;
+						TargetPosition = targetCoMPos+legacyTargetVessel.Velocity() * Time.fixedDeltaTime;
 					}
 
 					//increaseTurnRate after launch
@@ -949,8 +963,16 @@ namespace BDArmory
 					//decrease turn rate after thrust cuts out
 					if(TimeIndex > dropTime+boostTime+cruiseTime)
 					{
-						turnRateDPS = atmosMultiplier * Mathf.Clamp(maxTurnRateDPS - ((TimeIndex-dropTime-boostTime-cruiseTime)*0.45f), 1, maxTurnRateDPS);	
-						if(hasRCS) 
+					    var clampedTurnRate = Mathf.Clamp(maxTurnRateDPS - ((TimeIndex - dropTime - boostTime - cruiseTime) * 0.45f),
+					        1, maxTurnRateDPS);
+					    turnRateDPS = clampedTurnRate;
+
+                        if (!vacuumSteerable)
+                        {
+                            turnRateDPS *= atmosMultiplier;
+                        }
+	
+                        if (hasRCS) 
 						{
 							turnRateDPS = 0;
 						}
@@ -989,7 +1011,7 @@ namespace BDArmory
                     }
                     else if (GuidanceMode == GuidanceModes.RCS)
                     {
-                        part.transform.rotation = Quaternion.RotateTowards(part.transform.rotation, Quaternion.LookRotation(targetPosition - part.transform.position, part.transform.up), turnRateDPS * Time.fixedDeltaTime);
+                        part.transform.rotation = Quaternion.RotateTowards(part.transform.rotation, Quaternion.LookRotation(TargetPosition - part.transform.position, part.transform.up), turnRateDPS * Time.fixedDeltaTime);
                     }
                     else if (GuidanceMode == GuidanceModes.Cruise)
                     {
@@ -1006,7 +1028,7 @@ namespace BDArmory
 					TargetMf = null;
 					if(aero)
 					{
-						aeroTorque = MissileGuidance.DoAeroForces(this, transform.position + (20*vessel.srf_velocity), liftArea, .25f, aeroTorque, maxTorque, maxAoA);
+						aeroTorque = MissileGuidance.DoAeroForces(this, transform.position + (20*vessel.Velocity()), liftArea, .25f, aeroTorque, maxTorque, maxAoA);
 					}
 				}
 
@@ -1140,10 +1162,12 @@ namespace BDArmory
         }
 
         void UpdateThrustForces()
-		{
-			if(currentThrust > 0)
+        {
+            if (MissileState == MissileStates.PostThrust) return;
+
+			if(currentThrust * Throttle > 0)
 			{
-				part.rb.AddRelativeForce(currentThrust * Vector3.forward);
+				part.rb.AddRelativeForce(currentThrust * Throttle * Vector3.forward);
 			}
 		}
 
@@ -1210,10 +1234,9 @@ namespace BDArmory
 				while(gpe.MoveNext())
 				{
 				    if (gpe.Current == null) continue;
-					if(vessel.atmDensity > 0)
+					if(!vessel.InVacuum() && Throttle > 0)
 					{
 						gpe.Current.emit = true;
-                      
                         //gpe.pEmitter.worldVelocity = ParticleTurbulence.Turbulence;
                         gpe.Current.pEmitter.worldVelocity = 2*ParticleTurbulence.flareTurbulence;
 					}
@@ -1339,33 +1362,30 @@ namespace BDArmory
 				{
 					audioSource.Stop();
 				}
+			    audioSource.volume = Throttle;
+                //particleFx
+                List<KSPParticleEmitter>.Enumerator emitter = pEmitters.GetEnumerator();
+			    while (emitter.MoveNext())
+			    {
+			        if (emitter.Current == null) continue;
+			        if (!hasRCS)
+			        {
+			            emitter.Current.sizeGrow = Mathf.Lerp(emitter.Current.sizeGrow, 0, 20 * Time.deltaTime);
+			        }
 
-				//particleFx
-			    List<KSPParticleEmitter>.Enumerator emitter = pEmitters.GetEnumerator();
-				while(emitter.MoveNext())
-				{
-				    if (emitter.Current == null) continue;
-					if(!hasRCS)
-					{
-						emitter.Current.sizeGrow = Mathf.Lerp(emitter.Current.sizeGrow, 0, 20*Time.deltaTime);
-					}
-				}
-                emitter.Dispose();
+			        emitter.Current.maxSize = Mathf.Clamp01(Throttle/ Mathf.Clamp((float) vessel.atmDensity, 0.2f, 1f));
+			        emitter.Current.emit = true;
+                }
+			    emitter.Dispose();
 
 			    List<BDAGaplessParticleEmitter>.Enumerator gpe = gaplessEmitters.GetEnumerator();
 				while(gpe.MoveNext())
 				{
 				    if (gpe.Current == null) continue;
-					if(vessel.atmDensity > 0)
-					{
-					    gpe.Current.emit = true;
+                        gpe.Current.pEmitter.maxSize = Mathf.Clamp01(Throttle / Mathf.Clamp((float)vessel.atmDensity, 0.2f, 1f));
+                        gpe.Current.emit = true;
                         //gpe.pEmitter.worldVelocity = ParticleTurbulence.Turbulence;
 					    gpe.Current.pEmitter.worldVelocity = 2*ParticleTurbulence.flareTurbulence;
-					}
-					else
-					{
-					    gpe.Current.emit = false;
-                    }	
 				}
                 gpe.Dispose();
 
@@ -1503,8 +1523,8 @@ namespace BDArmory
 				guidanceActive = false;
 				return;
 			}
-			Ray laserBeam = new Ray(targetingPod.cameraParentTransform.position + (targetingPod.vessel.srf_velocity * Time.fixedDeltaTime), targetingPod.targetPointPosition - targetingPod.cameraParentTransform.position);
-			Vector3 target = MissileGuidance.GetBeamRideTarget(laserBeam, part.transform.position, vessel.srf_velocity, beamCorrectionFactor, beamCorrectionDamping, (TimeIndex > 0.25f ? previousBeam : laserBeam));
+			Ray laserBeam = new Ray(targetingPod.cameraParentTransform.position + (targetingPod.vessel.Velocity() * Time.fixedDeltaTime), targetingPod.targetPointPosition - targetingPod.cameraParentTransform.position);
+			Vector3 target = MissileGuidance.GetBeamRideTarget(laserBeam, part.transform.position, vessel.Velocity(), beamCorrectionFactor, beamCorrectionDamping, (TimeIndex > 0.25f ? previousBeam : laserBeam));
 			previousBeam = laserBeam;
 			DrawDebugLine(part.transform.position, target);
 			DoAero(target);
@@ -1598,7 +1618,7 @@ namespace BDArmory
 			}
 			else
 			{
-				aamTarget = transform.position + (20*vessel.srf_velocity.normalized);
+				aamTarget = transform.position + (20*vessel.Velocity().normalized);
 			}
 
             if (TimeIndex > dropTime+0.25f)
@@ -1661,7 +1681,7 @@ namespace BDArmory
             }
             else
             {
-                SLWTarget = transform.position + (20 * vessel.srf_velocity.normalized);
+                SLWTarget = transform.position + (20 * vessel.Velocity().normalized);
             }
 
             if (TimeIndex > dropTime + 0.25f)
@@ -1679,49 +1699,10 @@ namespace BDArmory
 			aeroTorque = MissileGuidance.DoAeroForces(this, targetPosition, liftArea, controlAuthority * steerMult, aeroTorque, finalMaxTorque, maxAoA);
 		}
 
-        private float originalDistance = 0f;
+
         void AGMBallisticGuidance()
 		{
-            //Vector3 agmTarget;
-            //bool validSolution = MissileGuidance.GetBallisticGuidanceTarget(TargetPosition, vessel, !indirect, out agmTarget);
-            //if(!validSolution || Vector3.Angle(TargetPosition - transform.position, agmTarget - transform.position) > Mathf.Clamp(maxOffBoresight, 0, 65))
-            //{
-            //	Vector3 dToTarget = TargetPosition - transform.position;
-            //	Vector3 direction = Quaternion.AngleAxis(Mathf.Clamp(maxOffBoresight * 0.9f, 0, 45f), Vector3.Cross(dToTarget, VectorUtils.GetUpDirection(transform.position))) * dToTarget;
-            //	agmTarget = transform.position + direction;
-            //         }
-
-            //DoAero(agmTarget);
-
-            // Using BallisticGuidance() code from BDMModularGuidance 
-            
-            float currentDistance = Vector3.Distance(TargetPosition, vessel.CoM);
-            if (currentDistance > originalDistance)
-            {
-                originalDistance = currentDistance;
-            }
-            Vector3 agmTarget;
-
-
-            if (currentDistance > originalDistance / 2)
-            {
-                bool validSolution =
-                    MissileGuidance.GetBallisticGuidanceTarget(TargetPosition, vessel, false, out agmTarget);
-                if (!validSolution || Vector3.Angle(TargetPosition - vessel.CoM, agmTarget - vessel.CoM) >
-                    Mathf.Clamp(maxOffBoresight, 0, 65))
-                {
-                    Vector3 dToTarget = TargetPosition - vessel.CoM;
-                    Vector3 direction = Quaternion.AngleAxis(Mathf.Clamp(maxOffBoresight * 0.9f, 0, 45f),
-                                            Vector3.Cross(dToTarget,
-                                                VectorUtils.GetUpDirection(vessel.transform.position))) * dToTarget;
-                    agmTarget = vessel.CoM + direction;
-                }
-            }
-            else
-            {
-                agmTarget = MissileGuidance.GetAirToGroundTarget(TargetPosition, vessel, 1.85f);
-            }
-            DoAero(agmTarget);
+            DoAero(CalculateAGMBallisticGuidance(this,TargetPosition));
         }
 
 		void UpdateLegacyTarget()
@@ -1749,9 +1730,9 @@ namespace BDArmory
 				if(TargetingMode != TargetingModes.Gps || TargetAcquired)
 				{
 					TargetAcquired = true;
-					TargetPosition = legacyTargetVessel.CoM + (legacyTargetVessel.srf_velocity * Time.fixedDeltaTime);
+					TargetPosition = legacyTargetVessel.CoM + (legacyTargetVessel.Velocity() * Time.fixedDeltaTime);
 					targetGPSCoords = VectorUtils.WorldPositionToGeoCoords(TargetPosition, vessel.mainBody);
-					TargetVelocity = legacyTargetVessel.srf_velocity;
+					TargetVelocity = legacyTargetVessel.Velocity();
 					TargetAcceleration = legacyTargetVessel.acceleration;
 					lastLaserPoint = TargetPosition;
 					lockFailTimer = 0;
@@ -1900,15 +1881,11 @@ namespace BDArmory
 
 		void OnGUI()
 		{
-			if(HasFired && BDArmorySettings.DRAW_DEBUG_LABELS)	
-			{
-				GUI.Label(new Rect(200,300,200,200), debugString);	
-			}
-			if(HasFired && hasRCS)
-			{
-				BDGUIUtils.DrawLineBetweenWorldPositions(transform.position, TargetPosition, 2, Color.red);
-			}
-		}
+		    if (!HighLogic.LoadedSceneIsEditor)
+		    {
+		        drawLabels();
+		    }
+        }
 
 		void AntiSpin()
 		{
@@ -1931,16 +1908,16 @@ namespace BDArmory
 		void SimpleDrag()
 		{
 			part.dragModel = Part.DragModel.NONE;
-			//float simSpeedSquared = (float)vessel.srf_velocity.sqrMagnitude;
+			//float simSpeedSquared = (float)vessel.Velocity.sqrMagnitude;
 			float simSpeedSquared = (part.rb.GetPointVelocity(part.transform.TransformPoint(simpleCoD))+(Vector3)Krakensbane.GetFrameVelocity()).sqrMagnitude;
 			Vector3 currPos = transform.position;
 			float drag = deployed ? deployedDrag : simpleDrag;
 			float dragMagnitude = (0.008f * part.rb.mass) * drag * 0.5f * simSpeedSquared * (float)FlightGlobals.getAtmDensity(FlightGlobals.getStaticPressure(currPos), FlightGlobals.getExternalTemperature(), FlightGlobals.currentMainBody);
-			Vector3 dragForce = dragMagnitude * vessel.srf_velocity.normalized;
+			Vector3 dragForce = dragMagnitude * vessel.Velocity().normalized;
 			part.rb.AddForceAtPosition(-dragForce, transform.TransformPoint(simpleCoD));
 
-			Vector3 torqueAxis = -Vector3.Cross(vessel.srf_velocity, part.transform.forward).normalized;
-			float AoA = Vector3.Angle(part.transform.forward, vessel.srf_velocity);
+			Vector3 torqueAxis = -Vector3.Cross(vessel.Velocity(), part.transform.forward).normalized;
+			float AoA = Vector3.Angle(part.transform.forward, vessel.Velocity());
 			AoA /= 20;
 			part.rb.AddTorque(AoA * simpleStableTorque * dragMagnitude * torqueAxis);
 		}

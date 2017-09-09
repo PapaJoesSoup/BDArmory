@@ -1,4 +1,5 @@
 using System.Collections;
+using BDArmory.Core.Extension;
 using BDArmory.CounterMeasure;
 using BDArmory.Misc;
 using BDArmory.Radar;
@@ -646,7 +647,7 @@ namespace BDArmory.Parts
 					//cameraParentTransform.rotation = lookRotation;
 					if(tgt.vessel)
 					{
-						targetDirection = ((tgt.vessel.CoM+(tgt.vessel.srf_velocity*Time.fixedDeltaTime)) - cameraParentTransform.transform.position);
+						targetDirection = ((tgt.vessel.CoM+(tgt.vessel.Velocity() * Time.fixedDeltaTime)) - cameraParentTransform.transform.position);
 					}
 					PointCameraModel(targetDirection);
 					GroundStabilize();
@@ -1231,7 +1232,7 @@ namespace BDArmory.Parts
 						    p = rayHit.collider.GetComponentInParent<Part>();
 						if(p && p.vessel && p.vessel.CoM != Vector3.zero)
 						{
-							groundTargetPosition = p.vessel.CoM + (p.vessel.srf_velocity * Time.fixedDeltaTime);
+							groundTargetPosition = p.vessel.CoM + (p.vessel.Velocity() * Time.fixedDeltaTime);
 							StartCoroutine(StabilizeNextFrame());
 						}
 					}

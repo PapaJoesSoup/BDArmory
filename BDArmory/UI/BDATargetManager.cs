@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using BDArmory.Core.Extension;
 using BDArmory.CounterMeasure;
 using BDArmory.Misc;
 using BDArmory.Parts;
@@ -311,7 +312,7 @@ namespace BDArmory.UI
 						if(!part) continue;
 						if(!allAspect)
 						{
-							if(!Misc.Misc.CheckSightLineExactDistance(ray.origin, part.transform.position+vessel.srf_velocity, Vector3.Distance(part.transform.position,ray.origin), 5, 5)) continue;
+							if(!Misc.Misc.CheckSightLineExactDistance(ray.origin, part.transform.position+vessel.Velocity(), Vector3.Distance(part.transform.position,ray.origin), 5, 5)) continue;
 						}
 
 						float thisScore = (float)(part.thermalInternalFluxPrevious+part.skinTemperature) * (15/Mathf.Max(15,angle));

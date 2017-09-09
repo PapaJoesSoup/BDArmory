@@ -106,8 +106,13 @@ namespace BDArmory.Parts
 
             if (Fields["CruiseAltitude"] != null)
             {
-                Fields["CruiseAltitude"].guiActive = GuidanceIndex == 3;
-                Fields["CruiseAltitude"].guiActiveEditor = GuidanceIndex == 3;
+                Fields["CruiseAltitude"].guiActive = GuidanceMode == GuidanceModes.Cruise;
+                Fields["CruiseAltitude"].guiActiveEditor = GuidanceMode == GuidanceModes.Cruise;
+            }
+            if (Fields["BallisticOverShootFactor"] != null)
+            {
+                Fields["BallisticOverShootFactor"].guiActive = GuidanceMode == GuidanceModes.AGMBallistic;
+                Fields["BallisticOverShootFactor"].guiActiveEditor = GuidanceMode == GuidanceModes.AGMBallistic;
             }
 
             Misc.Misc.RefreshAssociatedWindows(part);
@@ -312,7 +317,6 @@ namespace BDArmory.Parts
 
 
             //TODO: BDModularGuidance should be configurable?
-            EngageEnabled = false;
             heatThreshold = 50;
             lockedSensorFOV = 5;
             radarLOAL = true;
@@ -354,9 +358,14 @@ namespace BDArmory.Parts
 
             UI_FloatRange staticMin = (UI_FloatRange)Fields["minStaticLaunchRange"].uiControlEditor;
             UI_FloatRange staticMax = (UI_FloatRange)Fields["maxStaticLaunchRange"].uiControlEditor;
+            UI_FloatRange radarMax = (UI_FloatRange)Fields["ActiveRadarRange"].uiControlEditor;
+
             staticMin.onFieldChanged += OnStaticRangeUpdated;
             staticMax.onFieldChanged += OnStaticRangeUpdated;
-
+            staticMax.maxValue = BDArmorySettings.MAX_ENGAGEMENT_RANGE;
+            staticMax.stepIncrement = BDArmorySettings.MAX_ENGAGEMENT_RANGE / 100;
+            radarMax.maxValue = BDArmorySettings.MAX_ENGAGEMENT_RANGE;
+            radarMax.stepIncrement = BDArmorySettings.MAX_ENGAGEMENT_RANGE / 100;
 
             UI_FloatRange stageOnProximity = (UI_FloatRange)Fields["StageToTriggerOnProximity"].uiControlEditor;
             stageOnProximity.onFieldChanged = OnStageOnProximity;
@@ -364,8 +373,6 @@ namespace BDArmory.Parts
 
             OnStageOnProximity(Fields["StageToTriggerOnProximity"], null);
             InitializeEngagementRange(minStaticLaunchRange, maxStaticLaunchRange);
-
-            ToggleEngageOptions();
         }
 
         private void OnStageOnProximity(BaseField baseField, object o)
@@ -445,7 +452,7 @@ namespace BDArmory.Parts
                         if (_targetVessel != null)
                         {
                             TargetPosition = _targetVessel.CurrentCoM;
-                            TargetVelocity = _targetVessel.srf_velocity;
+                            TargetVelocity = _targetVessel.Velocity();
                             TargetAcceleration = _targetVessel.acceleration;
                         }
                         break;
@@ -482,7 +489,7 @@ namespace BDArmory.Parts
                 float timeToImpact;
                 aamTarget = MissileGuidance.GetAirToAirTargetModular(TargetPosition, TargetVelocity, previousTargetVelocity, TargetAcceleration, vessel, previousMissileVelocity, out timeToImpact);
                 previousTargetVelocity = TargetVelocity;
-                previousMissileVelocity = vessel.srf_velocity;
+                previousMissileVelocity = vessel.Velocity();
                 TimeToImpact = timeToImpact;
                 if (Vector3.Angle(aamTarget - vessel.CoM, vessel.transform.forward) > maxOffBoresight * 0.75f)
                 {
@@ -493,7 +500,7 @@ namespace BDArmory.Parts
             }
             else
             {
-                aamTarget = vessel.CoM + (20 * vessel.srfSpeed * vessel.srf_velocity.normalized);
+                aamTarget = vessel.CoM + (20 * vessel.srfSpeed * vessel.Velocity().normalized);
             }
 
             return aamTarget;
@@ -555,7 +562,7 @@ namespace BDArmory.Parts
             if (Vector3.Distance(vessel.CoM, SourceVessel.CoM) < 4 * DetonationDistance) return;
             // if I'm getting closer to  my target avoid explosion
             if (Vector3.Distance(vessel.CoM, targetPosition) >
-                Vector3.Distance(vessel.CoM + (vessel.srf_velocity * Time.fixedDeltaTime), targetPosition + (TargetVelocity * Time.fixedDeltaTime))) return;
+                Vector3.Distance(vessel.CoM + (vessel.Velocity() * Time.fixedDeltaTime), targetPosition + (TargetVelocity * Time.fixedDeltaTime))) return;
 
             if (MissileState != MissileStates.PostThrust) return;
             if (Vector3.Dot(targetPosition - vessel.CoM, vessel.transform.forward) > 0) return;
@@ -570,7 +577,8 @@ namespace BDArmory.Parts
         }
 
         public void GuidanceSteer(FlightCtrlState s)
-        {           
+        {
+            debugString = "";
             if (guidanceActive && MissileReferenceTransform != null && _velocityTransform != null)
             {
                 Vector3 newTargetPosition = new Vector3();
@@ -596,7 +604,7 @@ namespace BDArmory.Parts
                 //Updating aero surfaces
                 if (TimeIndex > dropTime + 0.5f)
                 {
-                    _velocityTransform.rotation = Quaternion.LookRotation(vessel.srf_velocity, -vessel.transform.forward);
+                    _velocityTransform.rotation = Quaternion.LookRotation(vessel.Velocity(), -vessel.transform.forward);
                     Vector3 targetDirection = _velocityTransform.InverseTransformPoint(newTargetPosition).normalized;
                     targetDirection = Vector3.RotateTowards(Vector3.forward, targetDirection, 15*Mathf.Deg2Rad, 0);
 
@@ -608,41 +616,14 @@ namespace BDArmory.Parts
                     s.pitch = Mathf.Clamp(steerPitch, -MaxSteer, MaxSteer);
                 }
 
-                s.mainThrottle = 1;
+                s.mainThrottle = Throttle;
             }
            
         }
 
-        private float originalDistance = 0f;
         private Vector3 BallisticGuidance()
         {
-            float currentDistance = Vector3.Distance(TargetPosition, vessel.CoM);
-            if (currentDistance > originalDistance)
-            {
-                originalDistance = currentDistance;
-            }
-            Vector3 agmTarget;
-
-
-            if (currentDistance > originalDistance / 2)
-            {
-                bool validSolution =
-                    MissileGuidance.GetBallisticGuidanceTarget(TargetPosition, vessel, false, out agmTarget);
-                if (!validSolution || Vector3.Angle(TargetPosition - vessel.CoM, agmTarget - vessel.CoM) >
-                    Mathf.Clamp(maxOffBoresight, 0, 65))
-                {
-                    Vector3 dToTarget = TargetPosition - vessel.CoM;
-                    Vector3 direction = Quaternion.AngleAxis(Mathf.Clamp(maxOffBoresight * 0.9f, 0, 45f),
-                                            Vector3.Cross(dToTarget,
-                                                VectorUtils.GetUpDirection(vessel.transform.position))) * dToTarget;
-                    agmTarget = vessel.CoM + direction;
-                }
-            }
-            else
-            {
-                agmTarget = MissileGuidance.GetAirToGroundTarget(TargetPosition, vessel, 1.85f);
-            }
-            return agmTarget;
+            return CalculateAGMBallisticGuidance(this, TargetPosition);
         }
 
         private void UpdateMenus(bool visible)
@@ -702,7 +683,13 @@ namespace BDArmory.Parts
             //todo: find a way to fly by wire vessel decoupled
         }
 
-
+        void OnGUI()
+        {
+            if (!HighLogic.LoadedSceneIsEditor)
+            {
+                drawLabels(); 
+            }
+        }
 
         #region KSP ACTIONS
         [KSPAction("Fire Missile")]

@@ -1,3 +1,4 @@
+using BDArmory.Core.Extension;
 using BDArmory.CounterMeasure;
 using BDArmory.Misc;
 using BDArmory.Parts;
@@ -61,7 +62,7 @@ namespace BDArmory.Radar
 			radarCam.fieldOfView = camFoV;
 
 			radarCam.transform.position = origin;
-			radarCam.transform.LookAt(v.CoM+(v.srf_velocity*Time.fixedDeltaTime));
+			radarCam.transform.LookAt(v.CoM+(v.Velocity() * Time.fixedDeltaTime));
 
 			float pixels = 0;
 			RenderTexture.active = radarRT;
@@ -390,9 +391,9 @@ namespace BDArmory.Radar
 									results.foundMissile = true;
 									results.threatVessel = missileBase.vessel;
 									Vector3 vectorFromMissile = myWpnManager.vessel.CoM - missileBase.part.transform.position;
-									Vector3 relV = missileBase.vessel.srf_velocity - myWpnManager.vessel.srf_velocity;
+									Vector3 relV = missileBase.vessel.Velocity() - myWpnManager.vessel.Velocity();
 									bool approaching = Vector3.Dot(relV, vectorFromMissile) > 0;
-									if(missileBase.HasFired && missileBase.TimeIndex > 1 && approaching && (missileBase.TargetPosition - (myWpnManager.vessel.CoM + (myWpnManager.vessel.srf_velocity * Time.fixedDeltaTime))).sqrMagnitude < 3600)
+									if(missileBase.HasFired && missileBase.TimeIndex > 1 && approaching && (missileBase.TargetPosition - (myWpnManager.vessel.CoM + (myWpnManager.vessel.Velocity() * Time.fixedDeltaTime))).sqrMagnitude < 3600)
 									{
 										if(missileBase.TargetingMode == MissileBase.TargetingModes.Heat)
 										{
@@ -469,7 +470,7 @@ namespace BDArmory.Radar
 			
 			//notching and ground clutter
 			Vector3 targetDirection = (vessel.transform.position-origin).normalized;
-			Vector3 targetClosureV = Vector3.ProjectOnPlane(Vector3.Project(vessel.srf_velocity,targetDirection), upVector);
+			Vector3 targetClosureV = Vector3.ProjectOnPlane(Vector3.Project(vessel.Velocity(), targetDirection), upVector);
 			float notchFactor = 1;
 			float angleFromUp = Vector3.Angle(targetDirection,upVector);
 			float lookDownAngle = angleFromUp-90;
@@ -495,7 +496,13 @@ namespace BDArmory.Radar
 
 		public static bool TerrainCheck(Vector3 start, Vector3 end)
 		{
-			return Physics.Linecast(start, end, 1<<15);
+		    if (!BDArmorySettings.IGNORE_TERRAIN_CHECK)
+		    {
+		        return Physics.Linecast(start, end, 1 << 15);
+		    }
+	
+		    return false;
+		    
 		}
 
 	    public static Vector2 WorldToRadar(Vector3 worldPosition, Transform referenceTransform, Rect radarRect, float maxDistance)

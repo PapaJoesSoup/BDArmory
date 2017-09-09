@@ -122,7 +122,7 @@ namespace BDArmory
 
             prevPosition = gameObject.transform.position;
 
-            sourceOriginalV = sourceVessel.srf_velocity;
+            sourceOriginalV = sourceVessel.Velocity();
 
             if (!lightFlash)
             {
@@ -238,7 +238,7 @@ namespace BDArmory
                 bulletTrail.SetPosition(0,
                     transform.position +
                     (currentVelocity*tracerDeltaFactor*TimeWarp.fixedDeltaTime/TimeWarp.CurrentRate) -
-                    (FlightGlobals.ActiveVessel.srf_velocity*TimeWarp.fixedDeltaTime));
+                    (FlightGlobals.ActiveVessel.Velocity() * TimeWarp.fixedDeltaTime));
             }
             else
             {

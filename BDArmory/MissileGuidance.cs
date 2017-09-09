@@ -1,4 +1,5 @@
 using System;
+using BDArmory.Core.Extension;
 using BDArmory.Misc;
 using BDArmory.Parts;
 using BDArmory.UI;
@@ -29,7 +30,7 @@ namespace BDArmory
 
             Vector3 finalTarget = targetPosition +
                                   (Mathf.Clamp(
-                                       (distanceToTarget - ((float) missileVessel.srfSpeed*descentRatio))*0.22f, 0, 5000)*
+                                       (distanceToTarget - ((float) missileVessel.srfSpeed*descentRatio))*0.22f, 0, (float)missileVessel.altitude)*
                                    upDirection);
 
 
@@ -130,7 +131,7 @@ namespace BDArmory
             float leadTime = 0;
             float targetDistance = Vector3.Distance(targetPosition, missileVessel.transform.position);
 
-            Vector3 currVel = Mathf.Max((float) missileVessel.srfSpeed, minSpeed)*missileVessel.srf_velocity.normalized;
+            Vector3 currVel = Mathf.Max((float) missileVessel.srfSpeed, minSpeed)*missileVessel.Velocity().normalized;
 
             leadTime = (float) (1/((targetVelocity - currVel).magnitude/targetDistance));
             timeToImpact = leadTime;
@@ -151,12 +152,12 @@ namespace BDArmory
             if (previousTargetVelocity != Vector3.zero && previousMissileVelocity != Vector3.zero)
             {
                 effectiveTargetAcceleration = targetVelocity - previousTargetVelocity;
-                effectiveMissileAcceleration = (float) missileVessel.srfSpeed * missileVessel.srf_velocity.normalized -
+                effectiveMissileAcceleration = (float) missileVessel.srfSpeed * missileVessel.Velocity().normalized -
                                                previousMissileVelocity;
             }
 
             //Basic lead time calculation
-            Vector3 currVel = ((float) missileVessel.srfSpeed * missileVessel.srf_velocity.normalized);
+            Vector3 currVel = ((float) missileVessel.srfSpeed * missileVessel.Velocity().normalized);
             timeToImpact = (float)(1 / ((targetVelocity - currVel).magnitude / targetDistance));
             leadTime = Mathf.Clamp(timeToImpact, 0f, 8f);
 
@@ -197,7 +198,7 @@ namespace BDArmory
         {
             int iterations = 0;
             Vector3d relativeAcceleration = effectiveMissileAcceleration - effectiveTargetAcceleration;
-            Vector3d relativeVelocity = (float) missileVessel.srfSpeed * missileVessel.srf_velocity.normalized -
+            Vector3d relativeVelocity = (float) missileVessel.srfSpeed * missileVessel.Velocity().normalized -
                                    targetVelocity;
             Vector3 missileFinalPosition = missileVessel.CoM;
             float previousDistance = 0f;
@@ -247,9 +248,9 @@ namespace BDArmory
 		    }
             simMissileVel = optSpeed * (targetPosition - missile.transform.position).normalized;
 
-            leadTime = targetDistance/(float)(targetVessel.srf_velocity-simMissileVel).magnitude;
+            leadTime = targetDistance/(float)(targetVessel.Velocity() - simMissileVel).magnitude;
 			leadTime = Mathf.Clamp (leadTime, 0f, 8f);
-			targetPosition = targetPosition + (targetVessel.srf_velocity*leadTime);
+			targetPosition = targetPosition + (targetVessel.Velocity() * leadTime);
 
             if (targetVessel && targetDistance < 800)
             {
@@ -390,7 +391,7 @@ namespace BDArmory
             Rigidbody rb = ml.part.rb;
             double airDensity = ml.vessel.atmDensity;
             double airSpeed = ml.vessel.srfSpeed;
-            Vector3d velocity = ml.vessel.srf_velocity;
+            Vector3d velocity = ml.vessel.Velocity();
 
             //temp values
             Vector3 CoL = new Vector3(0, 0, -1f);
@@ -418,7 +419,7 @@ namespace BDArmory
 
 
             //guidance
-            if (airSpeed > 1)
+            if (airSpeed > 1 || (ml.vacuumSteerable && ml.Throttle > 0))
             {
                 Vector3 targetDirection;
                 float targetAngle;
@@ -441,7 +442,6 @@ namespace BDArmory
                     Vector3.forward);
 
                 rb.AddRelativeTorque(finalTorque);
-
                 return finalTorque;
             }
             else

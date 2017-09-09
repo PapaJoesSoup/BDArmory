@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using BDArmory.Core.Extension;
 using BDArmory.FX;
 using BDArmory.Misc;
 using BDArmory.UI;
@@ -455,12 +456,12 @@ namespace BDArmory
                 targetVel = weaponManager.slavedVelocity;
                 targetAccel = weaponManager.slavedAcceleration;
 
-                //targetPosition -= vessel.srf_velocity * predictedFlightTime;
+                //targetPosition -= vessel.Velocity * predictedFlightTime;
             }
             else if (legacyGuardTarget)
             {
                 targetPosition = legacyGuardTarget.CoM;
-                targetVel = legacyGuardTarget.srf_velocity;
+                targetVel = legacyGuardTarget.Velocity();
                 targetAccel = legacyGuardTarget.acceleration;
             }
             else

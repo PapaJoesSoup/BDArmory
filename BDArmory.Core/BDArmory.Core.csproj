@@ -37,6 +37,7 @@
     <Compile Include="Enum\DamageOperation.cs" />
     <Compile Include="Extension\PartExtensions.cs" />
     <Compile Include="Events\DamageEventArgs.cs" />
+    <Compile Include="Extension\VesselExtensions.cs" />
     <Compile Include="Services\DamageService.cs" />
     <Compile Include="Interface\INotificableService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -44,13 +45,15 @@
     <Compile Include="Services\TemperatureDamageService.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="Assembly-CSharp">
+    <Reference Include="Assembly-CSharp, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>..\BDArmory\LocalDev\Refs\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="KSPAssets, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\BDArmory\LocalDev\Refs\KSPAssets.dll</HintPath>
     </Reference>
+    <Reference Include="System" />
     <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\BDArmory\LocalDev\Refs\UnityEngine.dll</HintPath>
