@@ -139,3 +139,8 @@ BDArmory/LocalDev/Refs/UnityEngine.dll
 /BDArmory/UpgradeLog3.htm
 /BDArmory/UpgradeLog2.htm
 /BDArmory/UpgradeLog.htm
+/BDArmory/bin/Release
+/BDArmory.Core/bin
+/BDArmory.Guidance/bin/Release
+/BDArmory.Guidance/obj/Release
+/BDArmory/BDArmory.sln.DotSettings.user
