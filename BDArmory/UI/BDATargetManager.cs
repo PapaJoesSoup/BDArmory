@@ -255,7 +255,7 @@ namespace BDArmory.UI
             Ray ray = new Ray(missilePosition, groundTargetPosition - missilePosition);
             ray.origin += 10 * ray.direction;
             RaycastHit rayHit;
-            if (Physics.Raycast(ray, out rayHit, dist, 2228224) || Physics.Raycast(ray, out rayHit, dist, 557057))
+            if (Physics.Raycast(ray, out rayHit, dist, 557057))
             {
                 if ((rayHit.point - groundTargetPosition).sqrMagnitude < 200)
                 {

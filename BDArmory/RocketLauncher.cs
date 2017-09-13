@@ -629,9 +629,8 @@ namespace BDArmory
                     pointPositions.Add(simCurrPos);
                     if (!mouseAiming && !slaved)
                     {
-                        if (simTime > 0.1f && (Physics.Raycast(simPrevPos,simCurrPos-simPrevPos, out hit, Vector3.Distance(simPrevPos, simStartPos), 2228224) ||
-                            Physics.Raycast(simPrevPos, simCurrPos - simPrevPos, out hit,
-                                Vector3.Distance(simPrevPos, simCurrPos), 557057)))
+                        if (simTime > 0.1f && Physics.Raycast(simPrevPos, simCurrPos - simPrevPos, out hit,
+                                Vector3.Distance(simPrevPos, simCurrPos), 688129))
                         {
                             rocketPrediction = hit.point;
                             simulating = false;
@@ -699,8 +698,7 @@ namespace BDArmory
             {
                 RaycastHit hit;
                 float distance = 2500;
-                if (Physics.Raycast(transform.position, transform.forward, out hit, distance, 2228224) || 
-                    Physics.Raycast(transform.position, transform.forward, out hit, distance, 557057))
+                if (Physics.Raycast(transform.position, transform.forward, out hit, distance, 688129))
                 {
                     rocketPrediction = hit.point;
                 }
@@ -964,33 +962,34 @@ namespace BDArmory
                 Ray ray = new Ray(prevPosition, currPosition - prevPosition);
                 RaycastHit hit;
                 KerbalEVA hitEVA = null;
-                if (Physics.Raycast(ray, out hit, dist, 2228224))
-                {
-                    try
-                    {
-                        hitEVA = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
-                        if (hitEVA != null)
-                            Debug.Log("[BDArmory]:Hit on kerbal confirmed!");
-                    }
-                    catch (NullReferenceException)
-                    {
-                        Debug.Log("[BDArmory]:Whoops ran amok of the exception handler");
-                    }
+                //if (Physics.Raycast(ray, out hit, dist, 2228224))
+                //{
+                //    try
+                //    {
+                //        hitEVA = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+                //        if (hitEVA != null)
+                //            Debug.Log("[BDArmory]:Hit on kerbal confirmed!");
+                //    }
+                //    catch (NullReferenceException)
+                //    {
+                //        Debug.Log("[BDArmory]:Whoops ran amok of the exception handler");
+                //    }
 
-                    if (hitEVA && hitEVA.part.vessel != sourceVessel)
-                    {
-                        Detonate(hit.point);
-                    }
-                }
+                //    if (hitEVA && hitEVA.part.vessel != sourceVessel)
+                //    {
+                //        Detonate(hit.point);
+                //    }
+                //}
 
                 if (!hitEVA)
                 {
-                    if (Physics.Raycast(ray, out hit, dist, 557057))
+                    if (Physics.Raycast(ray, out hit, dist, 688129))
                     {
                         Part hitPart = null;
                         try
                         {
-                            hitPart = hit.collider.gameObject.GetComponentInParent<Part>();
+                            KerbalEVA eva = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+                            hitPart = eva ? eva.part : hit.collider.gameObject.GetComponentInParent<Part>();
                         }
                         catch (NullReferenceException)
                         {

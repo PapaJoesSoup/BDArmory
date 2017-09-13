@@ -304,7 +304,7 @@ namespace BDArmory
                 Ray terrainRay = new Ray(missileVessel.transform.position, tRayDirection);
                 RaycastHit rayHit;
 
-                if (Physics.Raycast(terrainRay, out rayHit, 8000, 1 << 17) || Physics.Raycast(terrainRay, out rayHit, 8000, 1 << 15))
+                if (Physics.Raycast(terrainRay, out rayHit, 8000, (1 << 15) | (1 << 17)))
                 {
                     float detectedAlt =
                         Vector3.Project(rayHit.point - missileVessel.transform.position, upDirection).magnitude;
@@ -479,7 +479,7 @@ namespace BDArmory
             }
 
             RaycastHit rayHit;
-            if (Physics.Raycast(ray, out rayHit, rayDistance, 1 << 17) || Physics.Raycast(ray, out rayHit, rayDistance, 1 << 15))
+            if (Physics.Raycast(ray, out rayHit, rayDistance, (1 << 15) | (1 << 17)))
             {
                 return rayHit.distance;
             }

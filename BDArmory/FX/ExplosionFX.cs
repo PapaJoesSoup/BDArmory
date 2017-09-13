@@ -117,71 +117,73 @@ namespace BDArmory.FX
 		public static void DoExplosionRay(Ray ray, float power, float heat, float maxDistance, ref List<Part> ignoreParts, ref List<DestructibleBuilding> ignoreBldgs, Vessel sourceVessel = null)
 		{
 			RaycastHit rayHit;
-            KerbalEVA hitEVA = null;
-            if (Physics.Raycast(ray, out rayHit, maxDistance, 2228224))
-            {
-                float sqrDist = (rayHit.point - ray.origin).sqrMagnitude;
-                float sqrMaxDist = maxDistance * maxDistance;
-                float distanceFactor = Mathf.Clamp01((sqrMaxDist - sqrDist) / sqrMaxDist);
+            //KerbalEVA hitEVA = null;
+            //if (Physics.Raycast(ray, out rayHit, maxDistance, 2228224))
+            //{
+            //    float sqrDist = (rayHit.point - ray.origin).sqrMagnitude;
+            //    float sqrMaxDist = maxDistance * maxDistance;
+            //    float distanceFactor = Mathf.Clamp01((sqrMaxDist - sqrDist) / sqrMaxDist);
 
-                try
-                {
-                    hitEVA = rayHit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
-                    if (hitEVA != null)
-                        Debug.Log("[BDArmory]:Hit on kerbal confirmed!");
-                }
-                catch (System.NullReferenceException)
-                {
-                    Debug.Log("[BDArmory]:Whoops ran amok of the exception handler");
-                }
+            //    try
+            //    {
+            //        hitEVA = rayHit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+            //        if (hitEVA != null)
+            //            Debug.Log("[BDArmory]:Hit on kerbal confirmed!");
+            //    }
+            //    catch (System.NullReferenceException)
+            //    {
+            //        Debug.Log("[BDArmory]:Whoops ran amok of the exception handler");
+            //    }
 
-                Part part = hitEVA.part;
-                Vessel missileSource = null;
-                if (sourceVessel != null)
-                {
-                    MissileBase ml = part.FindModuleImplementing<MissileBase>();
-                    if (ml)
-                    {
-                        missileSource = ml.SourceVessel;
-                    }
-                }
+            //    Part part = hitEVA.part;
+            //    Vessel missileSource = null;
+            //    if (sourceVessel != null)
+            //    {
+            //        MissileBase ml = part.FindModuleImplementing<MissileBase>();
+            //        if (ml)
+            //        {
+            //            missileSource = ml.SourceVessel;
+            //        }
+            //    }
 
 
-                if (!ignoreParts.Contains(part) && part.physicalSignificance == Part.PhysicalSignificance.FULL &&
-                    (!sourceVessel || sourceVessel != missileSource))
-                {
-                    ignoreParts.Add(part);
-                    Rigidbody rb = part.GetComponent<Rigidbody>();
-                    if (rb)
-                    {
-                        rb.AddForceAtPosition(ray.direction * power * distanceFactor * ExplosionImpulseMultiplier,
-                            rayHit.point, ForceMode.Impulse);
-                    }
-                    if (heat < 0)
-                    {
-                        heat = power;
-                    }
-                    float heatDamage = (BDArmorySettings.DMG_MULTIPLIER / 100) * ExplosionHeatMultiplier * heat *
-                                       distanceFactor / part.crashTolerance;
-                    float excessHeat = Mathf.Max(0, (float)(part.temperature + heatDamage - part.maxTemp));
-                    part.AddDamage(heatDamage);
-                    if (BDArmorySettings.DRAW_DEBUG_LABELS)
-                        Debug.Log("[BDArmory]:====== Explosion ray hit part! Damage: " + heatDamage);
-                    if (excessHeat > 0 && part.parent)
-                    {
-                        part.parent.AddDamage(excessHeat);
-                    }
-                    return;
-                }
-            }
+            //    if (!ignoreParts.Contains(part) && part.physicalSignificance == Part.PhysicalSignificance.FULL &&
+            //        (!sourceVessel || sourceVessel != missileSource))
+            //    {
+            //        ignoreParts.Add(part);
+            //        Rigidbody rb = part.GetComponent<Rigidbody>();
+            //        if (rb)
+            //        {
+            //            rb.AddForceAtPosition(ray.direction * power * distanceFactor * ExplosionImpulseMultiplier,
+            //                rayHit.point, ForceMode.Impulse);
+            //        }
+            //        if (heat < 0)
+            //        {
+            //            heat = power;
+            //        }
+            //        float heatDamage = (BDArmorySettings.DMG_MULTIPLIER / 100) * ExplosionHeatMultiplier * heat *
+            //                           distanceFactor / part.crashTolerance;
+            //        float excessHeat = Mathf.Max(0, (float)(part.temperature + heatDamage - part.maxTemp));
+            //        part.AddDamage(heatDamage);
+            //        if (BDArmorySettings.DRAW_DEBUG_LABELS)
+            //            Debug.Log("[BDArmory]:====== Explosion ray hit part! Damage: " + heatDamage);
+            //        if (excessHeat > 0 && part.parent)
+            //        {
+            //            part.parent.AddDamage(excessHeat);
+            //        }
+            //        return;
+            //    }
+            //}
 
-			if(!hitEVA && Physics.Raycast(ray, out rayHit, maxDistance, 557057))
+			if(Physics.Raycast(ray, out rayHit, maxDistance, 688129))
 			{
 				float sqrDist = (rayHit.point - ray.origin).sqrMagnitude;
 				float sqrMaxDist = maxDistance * maxDistance;
 				float distanceFactor = Mathf.Clamp01((sqrMaxDist - sqrDist) / sqrMaxDist);
-				//parts
-				Part part = rayHit.collider.GetComponentInParent<Part>();
+                //parts
+                KerbalEVA eva = rayHit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+                Part part = eva ? eva.part : rayHit.collider.GetComponentInParent<Part>();
+
 				if(part)
 				{
 					Vessel missileSource = null;

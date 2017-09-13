@@ -1209,8 +1209,7 @@ namespace BDArmory.Parts
 
 			RaycastHit rayHit;
 			Ray ray = new Ray(cameraParentTransform.position + (50*cameraParentTransform.forward), cameraParentTransform.forward);
-			bool raycasted = Physics.Raycast(ray, out rayHit, maxRayDistance - 50, 2228224) ||
-                Physics.Raycast(ray, out rayHit, maxRayDistance - 50, 557057);
+			bool raycasted = Physics.Raycast(ray, out rayHit, maxRayDistance - 50, 688129);
 			if(raycasted)
 			{
 				if(FlightGlobals.getAltitudeAtPos(rayHit.point) < 0)
@@ -1225,11 +1224,7 @@ namespace BDArmory.Parts
 					if(CoMLock)
 					{
                         KerbalEVA hitEVA = rayHit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
-                        Part p;
-                        if (hitEVA)
-                            p = hitEVA.part;
-                        else 
-						    p = rayHit.collider.GetComponentInParent<Part>();
+                        Part p = hitEVA ? hitEVA.part : rayHit.collider.GetComponentInParent<Part>();
 						if(p && p.vessel && p.vessel.CoM != Vector3.zero)
 						{
 							groundTargetPosition = p.vessel.CoM + (p.vessel.Velocity() * Time.fixedDeltaTime);
@@ -1292,7 +1287,7 @@ namespace BDArmory.Parts
 
 			RaycastHit rayHit;
 			Ray ray = new Ray(cameraParentTransform.position + (50*cameraParentTransform.forward), cameraParentTransform.forward);
-			if(Physics.Raycast(ray, out rayHit, maxRayDistance-50, 2228224) || Physics.Raycast(ray, out rayHit, maxRayDistance-50, 557057))
+			if(Physics.Raycast(ray, out rayHit, maxRayDistance-50, 688129))
 			{
 				targetPointPosition = rayHit.point;
 
@@ -1304,11 +1299,7 @@ namespace BDArmory.Parts
 					if(CoMLock)
 					{
                         KerbalEVA hitEVA = rayHit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
-                        Part p;
-                        if (hitEVA)
-                            p = hitEVA.part;
-                        else
-                            p = rayHit.collider.GetComponentInParent<Part>();
+                        Part p = hitEVA ? hitEVA.part : rayHit.collider.GetComponentInParent<Part>();
                         if (p && p.vessel && p.vessel.Landed)
 						{
 							groundTargetPosition = p.vessel.CoM;
