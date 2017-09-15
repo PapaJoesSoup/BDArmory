@@ -4,11 +4,11 @@ namespace BDArmory.Armor
 {
     public static class ArmorPenetration
     {
-        public static void DoPenetrationRay(BulletPenetrationData data, float positiveCoefficient = 0)
+        public static void DoPenetrationRay(BulletPenetrationData data)
         {
             Ray ray = data.rayIn;
             RaycastHit hit = data.hitResultIn;
-            Vector3 finalDirect = Vector3.Lerp(ray.direction, -hit.normal, positiveCoefficient);
+            Vector3 finalDirect = ray.direction;
             float maxDis = hit.collider.bounds.size.magnitude;
             Vector3 point = finalDirect*maxDis + hit.point;
             Ray ray1 = new Ray(point, -finalDirect);
