@@ -244,6 +244,8 @@ namespace BDArmory
         [KSPField]
         public float bulletMass = 5.40133e-5f; //mass in tons - used for damage and recoil and drag
         [KSPField]
+        public float caliber = 0; //caliber in mm, used for penetration calcs
+        [KSPField]
         public float bulletDmgMult = 1; //Used for heat damage modifier for non-explosive bullets
         [KSPField]
         public float bulletVelocity = 860; //velocity in meters/second
@@ -1045,6 +1047,7 @@ namespace BDArmory
                         firedBullet.transform.position = fireTransform.position;
 
                         pBullet.mass = bulletMass;
+                        pBullet.caliber = caliber;
                         pBullet.bulletDmgMult = bulletDmgMult;
                         pBullet.ballisticCoefficient = bulletBallisticCoefficient;
                         pBullet.flightTimeElapsed = 0;

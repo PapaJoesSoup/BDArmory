@@ -67,12 +67,12 @@ namespace BDArmory
         float randomWidthScale = 1;
         LineRenderer bulletTrail;
         Vector3 sourceOriginalV;
-        bool hasBounced;
         public float maxDistance;
         Light lightFlash;
         bool wasInitiated;
         public Vector3 currentVelocity;
         public float mass;
+        public float caliber;
         public float ballisticCoefficient;
         public float flightTimeElapsed;
         bool collisionEnabled;
@@ -146,8 +146,7 @@ namespace BDArmory
 
             tracerStartWidth *= 2f;
             tracerEndWidth *= 2f;
-
-            hasBounced = false;
+            
             leftPenetration = 1;
             wasInitiated = true;
             StartCoroutine(FrameDelayedRoutine());
@@ -225,7 +224,7 @@ namespace BDArmory
 
             currPosition = gameObject.transform.position;
 
-            if (distanceFromStart > maxDistance)
+            if (distanceFromStart > maxDistance)//kill bullet if it goes past the max allowed distance
             {
                 KillBullet();
                 return;
@@ -239,278 +238,175 @@ namespace BDArmory
                 RaycastHit hit;
                 if (Physics.Raycast(ray, out hit, dist, 557057))
                 {
-                    bool penetrated = true;
-                    bool armor = false;
                     Part hitPart = null;
 
                     try
                     {
-                        hitPart = hit.collider.gameObject.GetComponentInParent<Part>();                        
+                        hitPart = hit.collider.gameObject.GetComponentInParent<Part>();
                     }
                     catch (NullReferenceException)
                     {
                         return;
                     }
-
-                    if ((hitPart == null) || hitPart.FindModuleImplementing<BDArmor>() == null)
+                    ///////////////////////////////////////////////////////////////////////                                 
+                    // High Explosive Detonation
+                    ///////////////////////////////////////////////////////////////////////
+                    if (hitPart == null || (hitPart != null && hitPart.vessel != sourceVessel))
                     {
-                        armor = BDArmor.GetArmor(hit.collider, hitPart);
-                        if (BDArmorySettings.DRAW_DEBUG_LABELS && armor) Debug.Log("[BDArmory]: Armor Hit");
+
+                        if (bulletType == PooledBulletTypes.Explosive)//if bullet hits and is HE, detonate and kill bullet, skip the rest as to not do resource intensive penetration calcs
+                        {
+                            ExplosionFX.CreateExplosion(hit.point - (ray.direction * 0.1f), radius, blastPower,
+                                blastHeat, sourceVessel, currentVelocity.normalized, explModelPath, explSoundPath);
+                            KillBullet();
+                            return;
+                        }
+                    }
+                    ///////////////////////////////////////////////////////////////////////                                 
+                    // KE Impact Damage                                                                
+                    ///////////////////////////////////////////////////////////////////////
+                    float hitAngle = Vector3.Angle(currentVelocity, -hit.normal);
+                    float anglemultiplier = (float)Math.Cos(3.14 * hitAngle / 180.0);
+                    float impactVelocity = currentVelocity.magnitude;
+                    if (dragType == BulletDragTypes.AnalyticEstimate)
+                    {
+                        float analyticDragVelAdjustment =
+                            (float)
+                            FlightGlobals.getAtmDensity(FlightGlobals.getStaticPressure(currPosition),
+                                FlightGlobals.getExternalTemperature(currPosition));
+                        analyticDragVelAdjustment *= flightTimeElapsed * initialSpeed;
+                        analyticDragVelAdjustment += 2 * ballisticCoefficient;
+
+                        analyticDragVelAdjustment = 2 * ballisticCoefficient * initialSpeed / analyticDragVelAdjustment;
+                        //velocity as a function of time under the assumption of a projectile only acted upon by drag with a constant drag area
+
+                        analyticDragVelAdjustment = analyticDragVelAdjustment - initialSpeed;
+                        //since the above was velocity as a function of time, but we need a difference in drag, subtract the initial velocity
+                        //the above number should be negative...
+                        impactVelocity += analyticDragVelAdjustment; //so add it to the impact velocity
                     }
 
-                    //BDArmor armor = BDArmor.GetArmor(hit.collider, hitPart);
+                    //hitting a vessel Part
+                    if (hitPart != null && !hitPart.partInfo.name.Contains("Strut")) //when a part is hit, execute damage code (ignores struts to keep those from being abused as armor)(no, because they caused weird bugs :) -BahamutoD)
+                    {
+                        float heatDamage = (mass / (hitPart.crashTolerance * hitPart.mass)) *
+                                           (impactVelocity * impactVelocity / 10) * // was impactVelocity * ImpactVelocity
+                                           BDArmorySettings.DMG_MULTIPLIER;// global damage multiplier (100% used for balancing)
 
+                        //bulletDmgMult;// individual bullet modifier, default 1
+
+                        //damage penalties for weapons using new penetration system (most does not apply to "legacy" parts or mods)
+                        if (hitPart.crashTolerance >= 80)//armor gets damage penalty based on angle of impact
+                        {
+                            heatDamage *= anglemultiplier;
+                        }
+                        if (hitPart.crashTolerance >= 80 && caliber <= 100 && caliber >= 0)//penalty for guns below 150mm hitting armor plate (lower caliber AP needs to rely on penetration)
+                        {
+                            heatDamage *= caliber / 100;
+                        }
+
+                        if (BDArmorySettings.DRAW_DEBUG_LABELS)
+                            Debug.Log("[BDArmory]: Hit! damage applied: " + heatDamage);
+
+                        if (hitPart.vessel != sourceVessel)
+                        {
+                            hitPart.AddDamage(heatDamage);
+                        }
+                    }
+
+                    //hitting a Building
+                    DestructibleBuilding hitBuilding = null;
+                    try
+                    {
+                        hitBuilding = hit.collider.gameObject.GetComponentUpwards<DestructibleBuilding>();
+                    }
+                    catch (NullReferenceException)
+                    {
+                    }
+                    if (hitBuilding != null && hitBuilding.IsIntact)
+                    {
+                        float damageToBuilding = mass * initialSpeed * initialSpeed * BDArmorySettings.DMG_MULTIPLIER /
+                                                 12000;
+                        hitBuilding.AddDamage(damageToBuilding);
+                        if (hitBuilding.Damage > hitBuilding.impactMomentumThreshold)
+                        {
+                            hitBuilding.Demolish();
+                        }
+                        if (BDArmorySettings.DRAW_DEBUG_LABELS)
+                            Debug.Log("[BDArmory]: bullet hit destructible building! Damage: " +
+                                      (damageToBuilding).ToString("0.00") + ", total Damage: " + hitBuilding.Damage);
+                    }
+                    ///////////////////////////////////////////////////////////////////////                                 
+                    // Hitting Ground
+                    ///////////////////////////////////////////////////////////////////////
+                    if (hitPart == null)//kill bullet if impacted part isnt defined
+                    {
+                        if (BDArmorySettings.BULLET_HITS)
+                        {
+                            BulletHitFX.CreateBulletHit(hit.point, hit.normal, true);
+                        }
+                        KillBullet();
+                        return;
+                    }
+                    ///////////////////////////////////////////////////////////////////////                                 
+                    // Armor Penetration
+                    ///////////////////////////////////////////////////////////////////////
                     ArmorPenetration.BulletPenetrationData armorData = new ArmorPenetration.BulletPenetrationData(ray, hit);
-                    ArmorPenetration.DoPenetrationRay(armorData, bullet.positiveCoefficient);
-                    float penetration = bullet.penetration.Evaluate(distanceFromStart)/1000;
-                    bool fulllyPenetrated = penetration*leftPenetration >
-                                           ((armor) ? 1f : BDArmor.Instance.EquivalentThickness) * armorData.armorThickness;
-                    Vector3 finalDirect = Vector3.Lerp(ray.direction, -hit.normal, bullet.positiveCoefficient);
-                    
+                    ArmorPenetration.DoPenetrationRay(armorData);
+                    float penetration = 0;//penetration of 0 for legacy support
+                    if (caliber > 10)//use the "krupp" penetration formula for anything larger then HMGs
+                    {
+                        penetration = 16 * impactVelocity * (float)Math.Sqrt(mass) / (float)Math.Sqrt(caliber);
+                    }
+                    float thickness = 10;//regular KSP parts: 10mm armor
+                    if (hitPart.crashTolerance >= 80)//structural parts: 30mm armor
+                    {
+                        thickness = 30 / anglemultiplier;
+                    }
+                    for (int i = 0; i < hitPart.Resources.Count; i++){//"armor" resource containing parts, armor set to how much resource inside
+                        PartResource currentr = hitPart.Resources[i];
+                        if (currentr.resourceName == "Armor")
+                        {
+                                thickness = (float)currentr.amount / anglemultiplier;
+                                break;
+                        }
+                    }
+
+
+                    bool fulllyPenetrated = penetration > thickness;//check whether bullet penetrates the plate
                     if (fulllyPenetrated)
                     {
-                        currentVelocity = finalDirect*currentVelocity.magnitude*leftPenetration;
+                        if (BDArmorySettings.BULLET_HITS)
+                        {
+                            BulletHitFX.CreateBulletHit(hit.point, hit.normal, false);
+                        }
+                        currentVelocity = currentVelocity * (float)Math.Sqrt(thickness / penetration);//lower velocity on penetrating armor plate (does not affect low impact parts so that rounds can go through entire tank easily)                                transform.position = armorData.hitResultOut.point;
+                        flightTimeElapsed -= Time.fixedDeltaTime;
+                        prevPosition = transform.position;
+                        FixedUpdate();
+                        return;
                     }
                     else
                     {
-                        currPosition = hit.point;
-                        bulletTrail.SetPosition(1, currPosition);
-                    }
-
-                    float hitAngle = Vector3.Angle(currentVelocity, -hit.normal);
-
-                    ///////////////////////////////////////////////////////////////////////
-                    // Bullet Damage Start - ballistic
-                    ///////////////////////////////////////////////////////////////////////
-
-                    //dont do bullet damage if it is explosive
-                    if (bulletType != PooledBulletTypes.Explosive) 
-                    {
-                        float impactVelocity = currentVelocity.magnitude;
-                        if (dragType == BulletDragTypes.AnalyticEstimate)
+                        if (BDArmorySettings.BULLET_HITS)
                         {
-                            float analyticDragVelAdjustment =
-                                (float)
-                                FlightGlobals.getAtmDensity(FlightGlobals.getStaticPressure(currPosition),
-                                    FlightGlobals.getExternalTemperature(currPosition));
-                            analyticDragVelAdjustment *= flightTimeElapsed*initialSpeed;
-                            analyticDragVelAdjustment += 2*ballisticCoefficient;
-
-                            analyticDragVelAdjustment = 2*ballisticCoefficient*initialSpeed/analyticDragVelAdjustment;
-                            //velocity as a function of time under the assumption of a projectile only acted upon by drag with a constant drag area
-
-                            analyticDragVelAdjustment = analyticDragVelAdjustment - initialSpeed;
-                            //since the above was velocity as a function of time, but we need a difference in drag, subtract the initial velocity
-                            //the above number should be negative...
-                            impactVelocity += analyticDragVelAdjustment; //so add it to the impact velocity
-
-                            if (impactVelocity < 0)
-                            {
-                                impactVelocity = 0;
-                                //clamp the velocity to > 0, since it could drop below 0 if the bullet is fired upwards
-                            }
-                            //Debug.Log("flight time: " + flightTimeElapsed + " BC: " + ballisticCoefficient + "\ninit speed: " + initialSpeed + " vel diff: " + analyticDragVelAdjustment);
+                            BulletHitFX.CreateBulletHit(hit.point, hit.normal, false);
                         }
-
-                        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                        /////////////////////////////////////////////////[panzer1b] HEAT BASED DAMAGE CODE START//////////////////////////////////////////////////////////////
-                        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-                        //hitting a vessel Part
-                        if (hitPart != null) //see if it will ricochet of the part
-                        {
-                            penetrated = !RicochetOnPart(hitPart, hitAngle, impactVelocity);
-                        }
-                        else //see if it will ricochet off scenery
-                        {
-                            float reflectRandom = UnityEngine.Random.Range(-75f, 90f);
-                            if (reflectRandom > 90 - hitAngle)
-                            {
-                                penetrated = false;
-                            }
-                        }
-                        
-                        if (hitPart != null && !hitPart.partInfo.name.Contains("Strut")) //when a part is hit, execute damage code (ignores struts to keep those from being abused as armor)(no, because they caused weird bugs :) -BahamutoD)
-                        {
-                            //TODO: Review damage formula - is this the correct method of calculation?
-                            float heatDamage = (mass/(hitPart.crashTolerance*hitPart.mass))*
-                                               (impactVelocity * impactVelocity) * // was impactVelocity * ImpactVelocity
-                                               BDArmorySettings.DMG_MULTIPLIER * // global damage multiplier
-                                               bulletDmgMult // individual bullet modifier, default 1
-                                               ;
-                            //how much heat damage will be applied based on bullet mass, velocity, and part's impact tolerance and mass
-                            if (!penetrated)
-                            {
-                                heatDamage = heatDamage/2; //TODO: Review Damage for penetrated
-                            }
-                            if (!fulllyPenetrated)
-                            {
-                                heatDamage = heatDamage/3; //TODO: Review Damage for fully penetrated
-                            }
-
-                            //if (BDArmorySettings.INSTAKILL)
-                            //    //instakill support, will be removed once mod becomes officially MP
-                            //{
-                            //    heatDamage = (float) hitPart.maxTemp + 100;
-                            //    //make heat damage equal to the part's max temperture, effectively instakilling any part it hits
-                            //}
-
-                            if (BDArmorySettings.DRAW_DEBUG_LABELS)
-                                Debug.Log("[BDArmory]: Hit! damage applied: " + heatDamage + " | Penetrated:" + penetrated + " | Fully Penetrated:" + fulllyPenetrated);
-
-                            if (hitPart.vessel != sourceVessel)
-                            {
-                                hitPart.AddDamage(heatDamage);
-                            }
-
-                            float overKillHeatDamage = (float) (hitPart.temperature - hitPart.maxTemp);
-
-                            if ((overKillHeatDamage > 100 && hitPart.mass < 0.01) || overKillHeatDamage > 90000)    //only kicks in if damage overheat is excessive (insanely powerful weapon hits tank), or if the hit part is very very lightweight to prevent exploiting or using weak trash as throw-away armor.
-                            //if the part is destroyed by overheating, we want to add the remaining heat to attached parts.  This prevents using tiny parts as armor
-                            {
-                                overKillHeatDamage *= hitPart.crashTolerance; //reset to raw damage
-                                float numConnectedParts = hitPart.children.Count;
-                                if (hitPart.parent != null)
-                                {
-                                    numConnectedParts++;
-                                    overKillHeatDamage /= numConnectedParts;
-                                    hitPart.parent.AddDamage(overKillHeatDamage/
-                                                                  (hitPart.parent.crashTolerance*hitPart.parent.mass));
-
-                                    for (int i = 0; i < hitPart.children.Count; i++)
-                                    {
-                                        hitPart.children[i].AddDamage(overKillHeatDamage/
-                                                                           hitPart.children[i].crashTolerance);
-                                    }
-                                }
-                                else
-                                {
-                                    overKillHeatDamage /= numConnectedParts;
-                                    for (int i = 0; i < hitPart.children.Count; i++)
-                                    {
-                                        hitPart.children[i].AddDamage(overKillHeatDamage/
-                                                                           hitPart.children[i].crashTolerance);
-                                    }
-                                }
-                            }
-                        }
-
-                        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                        /////////////////////////////////////////////////[panzer1b] HEAT BASED DAMAGE CODE END////////////////////////////////////////////////////////////////
-                        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-                        #region Bullet damage for buildings
-                        
-                        //hitting a Building
-                        DestructibleBuilding hitBuilding = null;
-                        try
-                        {
-                            hitBuilding = hit.collider.gameObject.GetComponentUpwards<DestructibleBuilding>();
-                        }
-                        catch (NullReferenceException)
-                        {
-                        }
-                        if (hitBuilding != null && hitBuilding.IsIntact)
-                        {
-                            float damageToBuilding = mass*initialSpeed*initialSpeed*BDArmorySettings.DMG_MULTIPLIER/
-                                                     12000;
-                            if (!penetrated)
-                            {
-                                damageToBuilding = damageToBuilding/8;
-                            }
-                            hitBuilding.AddDamage(damageToBuilding);
-                            if (hitBuilding.Damage > hitBuilding.impactMomentumThreshold)
-                            {
-                                hitBuilding.Demolish();
-                            }
-                            if (BDArmorySettings.DRAW_DEBUG_LABELS)
-                                Debug.Log("[BDArmory]: bullet hit destructible building! Damage: " +
-                                          (damageToBuilding).ToString("0.00") + ", total Damage: " + hitBuilding.Damage);
-                        }
+                        KillBullet();//kill bullet if no penetration
+                        return;
                     }
                     
-                    #endregion
-
                     ///////////////////////////////////////////////////////////////////////
-                    //Bullet Damage End - ballistic
+                    //Post Impact
                     ///////////////////////////////////////////////////////////////////////
 
-                    if (hitPart == null || (hitPart != null && hitPart.vessel != sourceVessel))
-                    {
-                        if (!penetrated && !hasBounced && !fulllyPenetrated)
-                        {
-                            //ricochet
-                            hasBounced = true;
-                            if (BDArmorySettings.BULLET_HITS)
-                            {
-                                BulletHitFX.CreateBulletHit(hit.point, hit.normal, true);
-                            }
-
-                            tracerStartWidth /= 2;
-                            tracerEndWidth /= 2;
-
-                            transform.position = hit.point;
-                            currentVelocity = Vector3.Reflect(currentVelocity, hit.normal);
-                            currentVelocity = (hitAngle/150)*currentVelocity*0.65f;
-
-                            Vector3 randomDirection = UnityEngine.Random.rotation*Vector3.one;
-
-                            currentVelocity = Vector3.RotateTowards(currentVelocity, randomDirection,
-                                UnityEngine.Random.Range(0f, 5f)*Mathf.Deg2Rad, 0);
-                        }
-                        else
-                        {
-                            ///////////////////////////////////////////////////////////////////////
-                            // Bullet Damage Start - explosive
-                            ///////////////////////////////////////////////////////////////////////
-
-                            if (bulletType == PooledBulletTypes.Explosive)
-                            {
-                                ExplosionFX.CreateExplosion(hit.point - (ray.direction*0.1f), radius, blastPower,
-                                    blastHeat, sourceVessel, currentVelocity.normalized, explModelPath, explSoundPath);
-                            }
-                            else if (BDArmorySettings.BULLET_HITS)
-                            {
-                                BulletHitFX.CreateBulletHit(hit.point, hit.normal, false);
-                            }
-
-                            if (armor &&
-                                (penetration * leftPenetration > BDArmor.Instance.outerArmorThickness/1000 * BDArmor.Instance.EquivalentThickness ||
-                                 fulllyPenetrated))
-                            {
-                                switch (BDArmor.Instance._explodeMode)
-                                {
-                                    case ArmorUtils.ExplodeMode.Always:
-                                        BDArmor.Instance.CreateExplosion(hitPart);
-                                        break;
-                                    case ArmorUtils.ExplodeMode.Dynamic:
-                                        float probability = CalculateExplosionProbability(hitPart);
-                                        if (probability > 0.1f)
-                                            BDArmor.Instance.CreateExplosion(hitPart);
-                                        break;
-                                    case ArmorUtils.ExplodeMode.Never:
-                                        break;
-                                }
-                            }
-                            if (fulllyPenetrated)
-                            {
-                                leftPenetration -= armorData.armorThickness/penetration;
-                                transform.position = armorData.hitResultOut.point;
-                                flightTimeElapsed -= Time.fixedDeltaTime;
-                                prevPosition = transform.position;
-                                FixedUpdate();
-                                return;
-                            }
-                            else
-                            {
-                                KillBullet();                                
-                                return;
-                            }
-                        }
-                    }
+                    
                 }
             }
 
+            ///////////////////////////////////////////////////////////////////////
+            //Flak Explosion (air detonation/proximity fuse)
+            ///////////////////////////////////////////////////////////////////////
             if (bulletType == PooledBulletTypes.Explosive && airDetonation && distanceFromStart > detonationRange)
             {
                 //detonate
@@ -520,8 +416,10 @@ namespace BDArmory
                 return;
             }
 
+            ///////////////////////////////////////////////////////////////////////
+            //Bullet Translation
+            ///////////////////////////////////////////////////////////////////////
             prevPosition = currPosition;
-
             //move bullet            
             transform.position += currentVelocity*Time.fixedDeltaTime;
         }
