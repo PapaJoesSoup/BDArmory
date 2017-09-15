@@ -9,12 +9,12 @@ namespace BDArmory.Armor
         static BDArmor instance;
         public static BDArmor Instance => instance;
 
-        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "EquivalentThickness"),
-            UI_FloatRange(minValue = 100f, maxValue = 5000f, stepIncrement = 50f, scene = UI_Scene.All)]
-        public float EquivalentThickness = 100f;
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Thickness (mm)"),
+            UI_FloatRange(minValue = 10f, maxValue = 500f, stepIncrement = 10f, scene = UI_Scene.All)]
+        public float EquivalentThickness = 0f;
 
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "outerArmorThickness"),
-            UI_FloatRange(minValue = 100f, maxValue = 5000f, stepIncrement = 50f, scene = UI_Scene.All)]
+            UI_FloatRange(minValue = 10f, maxValue = 500f, stepIncrement = 10f, scene = UI_Scene.All)]
         public float outerArmorThickness = 100f;
 
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "blastRadius")]
