@@ -375,12 +375,25 @@ namespace BDArmory
             Vector3 mouseAim = new Vector3(Input.mousePosition.x/Screen.width, Input.mousePosition.y/Screen.height, 0);
             Ray ray = FlightCamera.fetch.mainCamera.ViewportPointToRay(mouseAim);
             RaycastHit hit;
-            if (Physics.Raycast(ray, out hit, maxTargetingRange, 557057))
+            //KerbalEVA hitEVA = null;
+            //if (Physics.Raycast(ray, out hit, maxTargetingRange, 2228224))
+            //{
+            //    targetPosition = hit.point;
+            //    hitEVA = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+
+            //    if (hitEVA && hitEVA.part.vessel && hitEVA.part.vessel == vessel)
+            //    {
+            //        targetPosition = ray.direction * maxTargetingRange + FlightCamera.fetch.mainCamera.transform.position;
+            //    }
+            //}
+
+            if (Physics.Raycast(ray, out hit, maxTargetingRange, 688129))
             {
                 targetPosition = hit.point;
 
                 //aim through self vessel if occluding mouseray
-                Part p = hit.collider.gameObject.GetComponentInParent<Part>();
+                KerbalEVA eva = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+                Part p = eva ? eva.part : hit.collider.gameObject.GetComponentInParent<Part>();
                 if (p && p.vessel && p.vessel == vessel)
                 {
                     targetPosition = ray.direction*maxTargetingRange + FlightCamera.fetch.mainCamera.transform.position;

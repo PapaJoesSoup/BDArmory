@@ -4521,7 +4521,7 @@ namespace BDArmory
 
                 Ray ray = new Ray(prevPos, currPos - prevPos);
                 RaycastHit hitInfo;
-                if (Physics.Raycast(ray, out hitInfo, Vector3.Distance(prevPos, currPos), 1 << 15))
+                if (Physics.Raycast(ray, out hitInfo, Vector3.Distance(prevPos, currPos), (1 << 15) | (1 << 17)))
                 {
                     bombAimerPosition = hitInfo.point;
                     simulating = false;
