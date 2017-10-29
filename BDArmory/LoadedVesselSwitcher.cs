@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using BDArmory.UI;
 using UnityEngine;
@@ -19,10 +20,15 @@ namespace BDArmory
         private bool _showGui;
         private bool _teamSwitchDirty;
         private readonly float _titleHeight = 30;
+        private float updateTimer = 0;
 
         //gui params
         private float _windowHeight; //auto adjusting
-        private Rect _windowRect;
+        private Rect _windowRect
+        {
+            get { return BDArmorySettings.WindowRectVesselSwitcher; }
+            set { BDArmorySettings.WindowRectVesselSwitcher = value; }
+        }
         private readonly float _windowWidth = 250;
 
         private List<MissileFire> _wmgrsA;
@@ -47,10 +53,29 @@ namespace BDArmory
             GameEvents.onVesselGoOnRails.Add(VesselEventUpdate);
             MissileFire.OnToggleTeam += MissileFireOnToggleTeam;
 
-            _windowRect = new Rect(10, Screen.height / 6f, _windowWidth, 10);
-
             _ready = false;
             StartCoroutine(WaitForBdaSettings());
+
+            // TEST
+            FloatingOrigin.fetch.threshold = 20000; //20km
+            FloatingOrigin.fetch.thresholdSqr = 20000*20000; //20km
+            Debug.Log($"FLOATINGORIGIN: threshold is {FloatingOrigin.fetch.threshold}");
+
+            //_windowRect = new Rect(10, Screen.height / 6f, _windowWidth, 10); // now tied to BDArmorySettings persisted field!
+        }
+
+        private void OnDestroy()
+        {
+                GameEvents.onVesselCreate.Remove(VesselEventUpdate);
+                GameEvents.onVesselDestroy.Remove(VesselEventUpdate);
+                GameEvents.onVesselGoOffRails.Remove(VesselEventUpdate);
+                GameEvents.onVesselGoOnRails.Remove(VesselEventUpdate);
+                MissileFire.OnToggleTeam -= MissileFireOnToggleTeam;
+
+                _ready = false;
+
+            // TEST
+            Debug.Log($"FLOATINGORIGIN: threshold is {FloatingOrigin.fetch.threshold}");
         }
 
         private IEnumerator WaitForBdaSettings()
@@ -81,13 +106,19 @@ namespace BDArmory
             {
                 if (BDArmorySettings.Instance.showVSGUI != _showGui)
                 {
+                    updateTimer -= Time.fixedDeltaTime;
                     _showGui = BDArmorySettings.Instance.showVSGUI;
-                    if (_showGui)
+                    if (_showGui && updateTimer < 0)
+                    {
                         UpdateList();
+                        updateTimer = 0.5f;    //next update in half a sec only
+                    }
                 }
 
                 if (_showGui)
+                {                    
                     Hotkeys();
+                }
             }
         }
 
@@ -131,7 +162,7 @@ namespace BDArmory
             {
                 if (_showGui && BDArmorySettings.GAME_UI_ENABLED)
                 {
-                    _windowRect.height = _windowHeight;
+                    SetNewHeight(_windowHeight);
                     _windowRect = GUI.Window(10293444, _windowRect, ListWindow, "BDA Vessel Switcher",
                         HighLogic.Skin.window);
                     Misc.Misc.UpdateGUIRect(_windowRect, _guiCheckIndex);
@@ -149,6 +180,11 @@ namespace BDArmory
                     _wmToSwitchTeam = null;
                 }
             }
+        }
+
+        private void SetNewHeight(float windowHeight)
+        {
+            BDArmorySettings.WindowRectVesselSwitcher.height = windowHeight;
         }
 
         private void ListWindow(int id)

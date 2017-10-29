@@ -213,7 +213,7 @@ namespace BDArmory.Control
             wingmen = new List<BDModulePilotAI>();
 
             if (savedWingmen == string.Empty) return;
-            List<string>.Enumerator wingIDs = savedWingmen.Split(new char[] {','}).ToList().GetEnumerator();
+            IEnumerator<string> wingIDs = savedWingmen.Split(new char[] {','}).AsEnumerable().GetEnumerator();
             while (wingIDs.MoveNext())
             {
                 List<Vessel>.Enumerator vs = BDATargetManager.LoadedVessels.GetEnumerator();

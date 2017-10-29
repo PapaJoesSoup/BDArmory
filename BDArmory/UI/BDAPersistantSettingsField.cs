@@ -22,7 +22,7 @@ namespace BDArmory.UI
             }
 
             ConfigNode settings = fileNode.GetNode("BDASettings");
-            List<FieldInfo>.Enumerator field = typeof(BDArmorySettings).GetFields().ToList().GetEnumerator();
+            IEnumerator<FieldInfo> field = typeof(BDArmorySettings).GetFields().AsEnumerable().GetEnumerator();
             while (field.MoveNext())
             {
                 if (field.Current == null) continue;
@@ -41,7 +41,7 @@ namespace BDArmory.UI
 
             ConfigNode settings = fileNode.GetNode("BDASettings");
 
-            List<FieldInfo>.Enumerator field = typeof(BDArmorySettings).GetFields().ToList().GetEnumerator();
+            IEnumerator<FieldInfo> field = typeof(BDArmorySettings).GetFields().AsEnumerable().GetEnumerator();
             while (field.MoveNext())
             {
                 if (field.Current == null) continue;

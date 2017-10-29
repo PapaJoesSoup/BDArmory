@@ -46,6 +46,7 @@ namespace BDArmory.CounterMeasure
             jammers = new List<ModuleECMJammer>();
             vessel = GetComponent<Vessel>();
 
+            vessel.OnJustAboutToBeDestroyed += AboutToBeDestroyed;
             GameEvents.onVesselCreate.Add(OnVesselCreate);
             GameEvents.onPartJointBreak.Add(OnPartJointBreak);
             GameEvents.onPartDie.Add(OnPartDie);
@@ -53,12 +54,18 @@ namespace BDArmory.CounterMeasure
 
         void OnDestroy()
         {
+            vessel.OnJustAboutToBeDestroyed -= AboutToBeDestroyed;
             GameEvents.onVesselCreate.Remove(OnVesselCreate);
             GameEvents.onPartJointBreak.Remove(OnPartJointBreak);
             GameEvents.onPartDie.Remove(OnPartDie);
         }
 
-        void OnPartDie(Part p)
+        void AboutToBeDestroyed()
+        {
+            Destroy(this);
+        }
+
+        void OnPartDie(Part p = null)
         {
             if (gameObject.activeInHierarchy)
             {
@@ -113,8 +120,7 @@ namespace BDArmory.CounterMeasure
             float jSpamFactor = 1;
             float lbreakFactor = 1;
 
-            float rcsrTotalMass = 0;
-            float rcsrTotal = 0;
+            float rcsrTotal = 1;
             float rcsrCount = 0;
 
             List<ModuleECMJammer>.Enumerator jammer = jammers.GetEnumerator();
@@ -133,8 +139,7 @@ namespace BDArmory.CounterMeasure
                 }
                 if (jammer.Current.rcsReduction)
                 {
-                    rcsrTotalMass += jammer.Current.part.mass;
-                    rcsrTotal += jammer.Current.rcsReductionFactor;
+                    rcsrTotal *= jammer.Current.rcsReductionFactor;
                     rcsrCount++;
                 }
             }
@@ -145,9 +150,7 @@ namespace BDArmory.CounterMeasure
 
             if (rcsrCount > 0)
             {
-                float rcsrAve = rcsrTotal/rcsrCount;
-                float massFraction = rcsrTotalMass/vessel.GetTotalMass();
-                rcsr = Mathf.Clamp(1 - (rcsrAve*massFraction), 0.15f, 1);
+                rcsr = Mathf.Clamp((rcsrTotal*rcsrCount), 0.0f, 1); //allow for 100% stealth (cloaking device)
             }
             else
             {
@@ -191,12 +194,5 @@ namespace BDArmory.CounterMeasure
             UpdateJammerStrength();
         }
 
-        void OnGUI()
-        {
-            if (BDArmorySettings.DRAW_DEBUG_LABELS && vessel.isActiveVessel)
-            {
-                GUI.Label(new Rect(300, 700, 200, 200), "Total jammer strength: " + jammerStrength);
-            }
-        }
     }
 }

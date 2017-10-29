@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26730.10
+VisualStudioVersion = 15.0.26730.8
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BDArmory", "BDArmory.csproj", "{D86F2003-1724-4F4C-BB5A-B0109CB16F35}"
 EndProject
@@ -36,6 +36,6 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {46964B34-51EE-47B8-9434-E52B9873E6B8}
+		SolutionGuid = {A3A10DCC-85B5-49BC-8AAC-5547E4143101}
 	EndGlobalSection
 EndGlobal

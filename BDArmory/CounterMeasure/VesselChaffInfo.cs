@@ -13,7 +13,7 @@ namespace BDArmory.CounterMeasure
         const float speedRegenMult = 0.6f;
         const float minRegen = 40;
         const float maxRegen = 500;
-        const float minMult = 0.03f;
+        const float minMult = 0.1f;
         float chaffScalar = 500;
 
         void Awake()
@@ -25,6 +25,21 @@ namespace BDArmory.CounterMeasure
                 Destroy(this);
                 return;
             }
+
+            vessel.OnJustAboutToBeDestroyed += AboutToBeDestroyed;
+        }
+
+        void OnDestroy()
+        {
+            if (vessel)
+            {
+                vessel.OnJustAboutToBeDestroyed -= AboutToBeDestroyed;
+            }
+        }
+
+        void AboutToBeDestroyed()
+        {
+            Destroy(this);
         }
 
         public float GetChaffMultiplier()
@@ -43,12 +58,6 @@ namespace BDArmory.CounterMeasure
                 Mathf.Clamp(speedRegenMult*(float) vessel.srfSpeed, minRegen, maxRegen)*Time.fixedDeltaTime);
         }
 
-        void OnGUI()
-        {
-            if (BDArmorySettings.DRAW_DEBUG_LABELS && vessel.isActiveVessel)
-            {
-                GUI.Label(new Rect(600, 600, 200, 200), "Chaff multiplier: " + GetChaffMultiplier());
-            }
-        }
+
     }
 }

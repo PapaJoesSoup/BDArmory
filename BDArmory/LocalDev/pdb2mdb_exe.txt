@@ -1,1 +1,1 @@
-C:\Users\Designer225\Downloads\pdb2mdb.exe
+D:\wip\ksp-mod-dev\pdb2mdb.cmd

@@ -22,7 +22,7 @@ namespace BDArmory.Misc
 				let rocket = avPart.partPrefab.GetComponent<RocketLauncher>()
 				let otherModule = avPart.partPrefab.GetComponent<BDACategoryModule>()
 				where missile || moduleWeapon || missileFire || moduleRadar || cm || tgp || rocket || otherModule
-		        select avPart).ToList();
+		        select avPart).AsEnumerable();
 		}
 	}
 }

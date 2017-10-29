@@ -5,6 +5,7 @@ using BDArmory.Misc;
 using BDArmory.Radar;
 using BDArmory.UI;
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace BDArmory
 {
@@ -37,13 +38,15 @@ namespace BDArmory
 		{
 			orbital = false;
 			orbit = null;
-			velocity = v.Velocity();
 
-			vessel = v;
-			geoPos =  VectorUtils.WorldPositionToGeoCoords(v.CoM, v.mainBody);
+            timeAcquired = Time.time;
+            vessel = v;
+            velocity = v.Velocity();
+
+            geoPos =  VectorUtils.WorldPositionToGeoCoords(v.CoM, v.mainBody);
 			acceleration = v.acceleration;
 			exists = true;
-			timeAcquired = Time.time;
+			
 			signalStrength = _signalStrength;
 
 			targetInfo = v.gameObject.GetComponent<TargetInfo> ();
@@ -54,27 +57,29 @@ namespace BDArmory
                 targetInfo = v.gameObject.AddComponent<TargetInfo>();
             }
 
-			team = BDArmorySettings.BDATeams.None;
+            team = BDArmorySettings.BDATeams.None;
 
 			if(targetInfo)
 			{
 				team = targetInfo.team;
-			}
+                targetInfo.detectedTime = Time.time;
+            }
 			else
 			{
-				foreach(MissileFire mf in v.FindPartModulesImplementing<MissileFire>())
-				{
-					team = BDATargetManager.BoolToTeam(mf.team);
+                List<MissileFire>.Enumerator mf = v.FindPartModulesImplementing<MissileFire>().GetEnumerator();
+                while (mf.MoveNext())
+                {
+                    team = BDATargetManager.BoolToTeam(mf.Current.team);
 					break;
 				}
+                mf.Dispose();
 			}
 
 			vesselJammer = v.gameObject.GetComponent<VesselECMJInfo>();
 
 			pingPosition = Vector2.zero;
-
 			lockedByRadar = null;
-		}
+        }
 
 		public TargetSignatureData(CMFlare flare, float _signalStrength)
 		{
@@ -92,7 +97,7 @@ namespace BDArmory
 			orbit = null;
 			lockedByRadar = null;
 			vessel = null;
-		}
+        }
 
 		public TargetSignatureData(Vector3 _velocity, Vector3 _position, Vector3 _acceleration, bool _exists, float _signalStrength)
 		{
@@ -147,7 +152,36 @@ namespace BDArmory
 			}
 		}
 
-		public float altitude
+        public Vector3 predictedPositionWithChaffFactor
+        {
+            get
+            {
+                // get chaff factor of vessel and calculate decoy distortion caused by chaff echos
+                float decoyFactor = 0f;
+                Vector3 posDistortion = Vector3.zero;
+
+                if (vessel != null)
+                {
+                    decoyFactor = (1f - RadarUtils.GetVesselChaffFactor(vessel));
+                    if (decoyFactor > 0f)
+                    {
+                        decoyFactor *= UnityEngine.Random.Range(10f, 100f);
+                        posDistortion = Vector3.Cross(UnityEngine.Random.insideUnitSphere, vessel.transform.up) * decoyFactor;      //cross product: if deflection direction directly forward or aft, effect is smaller than if deflection laterally
+                    }
+                }
+
+                if (orbital)
+                {
+                    return orbit.getPositionAtUT(Planetarium.GetUniversalTime()).xzy + posDistortion;
+                }
+                else
+                {
+                    return position + (velocity * age) + (0.5f * acceleration * age * age) + posDistortion;
+                }
+            }
+        }
+
+        public float altitude
 		{
 			get
 			{
@@ -159,7 +193,7 @@ namespace BDArmory
 		{
 			get
 			{
-				return Time.time-timeAcquired;
+                return (Time.time - timeAcquired);
 			}
 		}
 

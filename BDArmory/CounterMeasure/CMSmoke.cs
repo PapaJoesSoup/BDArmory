@@ -34,8 +34,8 @@ namespace BDArmory.CounterMeasure
 					float enter;
 					if(smokePlane.Raycast(ray, out enter))
 					{
-						float dist = (ray.GetPoint(enter)-smokeTf.position).magnitude;
-						if(dist < 16)
+						float dist = (ray.GetPoint(enter)-smokeTf.position).sqrMagnitude;
+						if(dist < 16*16)
 						{
 							return true;
 						}

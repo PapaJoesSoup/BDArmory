@@ -280,7 +280,7 @@ namespace BDArmory
             }
             bool withinView = Vector3.Angle(targetPosition - pitchTransform.position, pitchTransform.forward) <
                               thresholdDegrees;
-            bool withinDistance = (targetPosition - pitchTransform.position).magnitude < maxDistance;
+            bool withinDistance = (targetPosition - pitchTransform.position).sqrMagnitude < maxDistance*maxDistance;
             return (withinView && withinDistance);
         }
 

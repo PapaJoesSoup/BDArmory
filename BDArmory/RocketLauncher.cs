@@ -775,10 +775,12 @@ namespace BDArmory
             output.Append(Environment.NewLine);
             output.Append($"Rocket Type: {rocketType}");
             output.Append(Environment.NewLine);
-            output.Append($"Max Range: {maxTargetingRange} meters");
+            output.Append($"Max Range: {maxTargetingRange} m");
             output.Append(Environment.NewLine);
 
-            output.Append($"Blast radius/force/heat: {blastRadius}/{blastForce}/{blastHeat}");
+            output.Append($"Blast radius/power/heat:");
+            output.Append(Environment.NewLine);
+            output.Append($"{blastRadius} / {blastForce} / {blastHeat}");
             output.Append(Environment.NewLine);
 
             return output.ToString();
@@ -834,7 +836,7 @@ namespace BDArmory
             rb = gameObject.AddComponent<Rigidbody>();
             pEmitters = gameObject.GetComponentsInChildren<KSPParticleEmitter>();
 
-            List<KSPParticleEmitter>.Enumerator pe = pEmitters.ToList().GetEnumerator();
+            IEnumerator<KSPParticleEmitter> pe = pEmitters.AsEnumerable().GetEnumerator();
             while (pe.MoveNext())
             {
                 if (pe.Current == null) continue;
@@ -933,7 +935,7 @@ namespace BDArmory
             if (Time.time - startTime > thrustTime)
             {
                 //isThrusting = false;
-                List<KSPParticleEmitter>.Enumerator pEmitter = pEmitters.ToList().GetEnumerator();
+                IEnumerator<KSPParticleEmitter> pEmitter = pEmitters.AsEnumerable().GetEnumerator();
                 while (pEmitter.MoveNext())
                 {
                     if (pEmitter.Current == null) continue;
@@ -1054,7 +1056,7 @@ namespace BDArmory
             ExplosionFX.CreateExplosion(pos, blastRadius, blastForce, blastHeat, sourceVessel, rb.velocity.normalized,
                 explModelPath, explSoundPath);
 
-            List<KSPParticleEmitter>.Enumerator emitter = pEmitters.ToList().GetEnumerator();
+            IEnumerator<KSPParticleEmitter> emitter = pEmitters.AsEnumerable().GetEnumerator();
             while (emitter.MoveNext())
             {
                 if (emitter.Current == null) continue;

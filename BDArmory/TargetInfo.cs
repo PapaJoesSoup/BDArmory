@@ -15,8 +15,14 @@ namespace BDArmory
 		public MissileFire weaponManager;
         List<MissileFire> friendliesEngaging;
         public float detectedTime;
-        Coroutine lifeRoutine;
-        Coroutine massRoutine;
+
+        public float radarBaseSignature = -1;
+        public bool radarBaseSignatureNeedsUpdate = true;
+        public float radarModifiedSignature;
+        public float radarLockbreakFactor;
+        public float radarJammingDistance;
+        public bool alreadyScheduledRCSUpdate = false;
+
 
         public bool isLanded
 		{
@@ -143,117 +149,90 @@ namespace BDArmory
 			{
 				vessel = GetComponent<Vessel>();
 			}
+
 			if(!vessel)
 			{
-				Debug.Log ("[BDArmory]:TargetInfo was added to a non-vessel");
+				Debug.Log ("[BDArmory]: TargetInfo was added to a non-vessel");
 				Destroy (this);
 				return;
 			}
 
-			//destroy this if a target info is already attached to the vessel
-			foreach(TargetInfo otherInfo in vessel.gameObject.GetComponents<TargetInfo>())
-			{
-				if(otherInfo != this)
-				{
-					Destroy(this);
-					return;
-				}
-			}
+            //destroy this if a target info is already attached to the vessel
+            IEnumerator otherInfo = vessel.gameObject.GetComponents<TargetInfo>().GetEnumerator();
+            while (otherInfo.MoveNext())
+            {
+                if ((object)otherInfo.Current != this)
+                {
+                    Destroy(this);
+                    return;
+                }
+            }
 
 			team = BDArmorySettings.BDATeams.None;
-
 			bool foundMf = false;
-			foreach(MissileFire mf in vessel.FindPartModulesImplementing<MissileFire>())
-			{
-				foundMf = true;
-				team = BDATargetManager.BoolToTeam(mf.team);
-				weaponManager = mf;
-				break;
-			}
+            List<MissileFire>.Enumerator mf = vessel.FindPartModulesImplementing<MissileFire>().GetEnumerator();
+            while (mf.MoveNext())
+            {
+                foundMf = true;
+                team = BDATargetManager.BoolToTeam(mf.Current.team);
+                weaponManager = mf.Current;
+                break;
+            }
+            mf.Dispose();
+
 			if(!foundMf)
 			{
-				foreach(MissileBase ml in vessel.FindPartModulesImplementing<MissileBase>())
-				{
-					isMissile = true;
-					MissileBaseModule = ml;
-					team = BDATargetManager.BoolToTeam(ml.Team);
-					break;
-				}
+                List<MissileBase>.Enumerator ml = vessel.FindPartModulesImplementing<MissileBase>().GetEnumerator();
+                while (ml.MoveNext())
+                {
+                    isMissile = true;
+                    MissileBaseModule = ml.Current;
+                    team = BDATargetManager.BoolToTeam(ml.Current.Team);
+                    break;
+                }
+                ml.Dispose();
 			}
 				
 			if(team != BDArmorySettings.BDATeams.None)
 			{
-				if(!BDATargetManager.TargetDatabase[BDATargetManager.OtherTeam(team)].Contains(this))
-				{
-					BDATargetManager.TargetDatabase[BDATargetManager.OtherTeam(team)].Add(this);
-				}
+                BDATargetManager.AddTarget(this);
 			}
 
 			friendliesEngaging = new List<MissileFire>();
 
-			vessel.OnJustAboutToBeDestroyed += AboutToBeDestroyed;
-			lifeRoutine = StartCoroutine(LifetimeRoutine());
-			//add delegate to peace enable event
-			BDArmorySettings.OnPeaceEnabled += OnPeaceEnabled;
+			vessel.OnJustAboutToBeDestroyed += AboutToBeDestroyed;            
 
-			if(!isMissile && team != BDArmorySettings.BDATeams.None)
+            //add delegate to peace enable event
+            BDArmorySettings.OnPeaceEnabled += OnPeaceEnabled;
+
+            //lifeRoutine = StartCoroutine(LifetimeRoutine());              // TODO: CHECK BEHAVIOUR AND SIDE EFFECTS!
+
+            if (!isMissile && team != BDArmorySettings.BDATeams.None)
 			{
-				massRoutine = StartCoroutine(MassRoutine());
-			}
-		}
+                GameEvents.onVesselPartCountChanged.Add(VesselModified);
+                //massRoutine = StartCoroutine(MassRoutine());              // TODO: CHECK BEHAVIOUR AND SIDE EFFECTS!
+            }
+        }
 
 		void OnPeaceEnabled()
 		{
-			if(lifeRoutine != null)
-			{
-				StopCoroutine(lifeRoutine);
-			}
-			if(massRoutine != null)
-			{
-				StopCoroutine(massRoutine);
-			}
-
-			Destroy(this);
+			//Destroy(this);
 		}
 
 		void OnDestroy()
 		{
 			//remove delegate from peace enable event
 			BDArmorySettings.OnPeaceEnabled -= OnPeaceEnabled;
-		}
-	
-		IEnumerator LifetimeRoutine()
-		{
-			detectedTime = Time.time;
-			while(Time.time - detectedTime < 60 && enabled)
-			{
-				yield return null;
-			}
-			if(massRoutine != null)
-			{
-				StopCoroutine(massRoutine);
-			}
-			Destroy(this);
-		}
+            vessel.OnJustAboutToBeDestroyed -= AboutToBeDestroyed;
+            GameEvents.onVesselPartCountChanged.Remove(VesselModified);
+        }
 		
-		IEnumerator MassRoutine()
+		IEnumerator UpdateRCSDelayed()
 		{
-			float startMass = vessel.GetTotalMass();
-			while(enabled)
-			{
-				if(vessel.GetTotalMass() < startMass / 4)
-				{
-					if(lifeRoutine != null)
-					{
-						StopCoroutine(lifeRoutine);
-					}
-
-					RemoveFromDatabases();
-					yield break;
-				}
-				yield return new WaitForSeconds(1);
-			}
-		}
+            alreadyScheduledRCSUpdate = true;
+            yield return new WaitForSeconds(1.0f);
+            //radarBaseSignatureNeedsUpdate = true;     //TODO: currently disabled to reduce stuttering effects due to more demanding radar rendering!
+        }
 
 		void Update()
 		{
@@ -286,15 +265,21 @@ namespace BDArmory
 
 		public void Engage(MissileFire mf)
 		{
+            if (mf == null || friendliesEngaging == null)
+                return;
+
 			if(!friendliesEngaging.Contains(mf))
 			{
-				friendliesEngaging.Add(mf);
+				friendliesEngaging?.Add(mf);
 			}
 		}
 
 		public void Disengage(MissileFire mf)
 		{
-			friendliesEngaging.Remove(mf);
+            if (mf == null)
+                return;
+
+            friendliesEngaging?.Remove(mf);
 		}
 		
 		void AboutToBeDestroyed()
@@ -315,6 +300,15 @@ namespace BDArmory
 			BDATargetManager.TargetDatabase[BDArmorySettings.BDATeams.A].Remove(this);
 			BDATargetManager.TargetDatabase[BDArmorySettings.BDATeams.B].Remove(this);
 		}
+
+        public void VesselModified(Vessel v)
+        {
+            if (v && v == this.vessel)
+            {
+                if (!alreadyScheduledRCSUpdate)
+                    StartCoroutine(UpdateRCSDelayed());
+            }
+        }
 	}
 }
 

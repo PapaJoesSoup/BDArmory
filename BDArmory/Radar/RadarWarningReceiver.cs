@@ -25,10 +25,11 @@ namespace BDArmory.Radar
             MissileLock = 4,
             Detection = 5,
             Sonar = 6,
-            Torpedo = 7
+            Torpedo = 7,
+            TorpedoLock = 8
         }
 
-        string[] iconLabels = new string[] {"S", "F", "A", "M", "M", "D","So","T"};
+        string[] iconLabels = new string[] {"S", "F", "A", "M", "M", "D","So","T", "T"};
 
 
         public MissileFire weaponManager;
@@ -44,6 +45,11 @@ namespace BDArmory.Radar
         public static AudioClip radarPingSound;
         public static AudioClip missileLockSound;
         public static AudioClip missileLaunchSound;
+        public static AudioClip sonarPing;
+        public static AudioClip torpedoPing;
+        private float torpedoPingPitch;
+        private float audioSourceRepeatDelay;
+        private const float audioSourceRepeatDelayTime = 0.5f;
 
         //float lastTimePinged = 0;
         const float minPingInterval = 0.12f;
@@ -85,6 +91,8 @@ namespace BDArmory.Radar
             radarPingSound = GameDatabase.Instance.GetAudioClip("BDArmory/Sounds/rwrPing");
             missileLockSound = GameDatabase.Instance.GetAudioClip("BDArmory/Sounds/rwrMissileLock");
             missileLaunchSound = GameDatabase.Instance.GetAudioClip("BDArmory/Sounds/mLaunchWarning");
+            sonarPing = GameDatabase.Instance.GetAudioClip("BDArmory/Sounds/rwr_sonarping");
+            torpedoPing = GameDatabase.Instance.GetAudioClip("BDArmory/Sounds/rwr_torpedoping");
         }
 
         public override void OnStart(StartState state)
@@ -187,7 +195,7 @@ namespace BDArmory.Radar
             if (weaponManager == null) return;           
 
             float sqrDist = (part.transform.position - source).sqrMagnitude;
-            if (sqrDist < Mathf.Pow(5000, 2) && sqrDist > Mathf.Pow(100, 2) &&
+            if (sqrDist < Mathf.Pow(BDArmorySettings.MAX_ENGAGEMENT_RANGE, 2) && sqrDist > Mathf.Pow(100, 2) &&
                 Vector3.Angle(direction, part.transform.position - source) < 15)
             {
                 StartCoroutine(
@@ -212,13 +220,20 @@ namespace BDArmory.Radar
 
             if (rwrEnabled && vessel && v == vessel)
             {
+                //if we are airborne or on land, no Sonar or SLW type weapons on the RWR!
+                if ((type == RWRThreatTypes.Torpedo || type == RWRThreatTypes.TorpedoLock || type == RWRThreatTypes.Sonar) && (vessel.situation != Vessel.Situations.SPLASHED))
+                {
+                    // rwr stays silent...
+                    return;
+                }
+
                 if (type == RWRThreatTypes.MissileLaunch || type == RWRThreatTypes.Torpedo)
                 {
                     StartCoroutine(
                         LaunchWarningRoutine(new TargetSignatureData(Vector3.zero,
                             RadarUtils.WorldToRadar(source, referenceTransform, displayRect, rwrDisplayRange),
                             Vector3.zero, true, (float) type)));
-                    PlayWarningSound(type);
+                    PlayWarningSound(type, (source - vessel.transform.position).sqrMagnitude);
                     return;
                 }
                 else if (type == RWRThreatTypes.MissileLock)
@@ -226,6 +241,7 @@ namespace BDArmory.Radar
                     if (!BDArmorySettings.ALLOW_LEGACY_TARGETING && weaponManager && weaponManager.guardMode)
                     {
                         weaponManager.FireChaff();
+                        // TODO: if torpedo inbound, also fire accoustic decoys (not yet implemented...)
                     }
                 }
 
@@ -234,8 +250,7 @@ namespace BDArmory.Radar
                 {
                     if (pingsData[i].exists &&
                         ((Vector2) pingsData[i].position -
-                         RadarUtils.WorldToRadar(source, referenceTransform, displayRect, rwrDisplayRange)).sqrMagnitude <
-                        Mathf.Pow(20, 2))
+                         RadarUtils.WorldToRadar(source, referenceTransform, displayRect, rwrDisplayRange)).sqrMagnitude < 900f)    //prevent ping spam
                     {
                         break;
                     }
@@ -253,44 +268,60 @@ namespace BDArmory.Radar
 
                     pingsData[openIndex] = new TargetSignatureData(Vector3.zero,
                         RadarUtils.WorldToRadar(source, referenceTransform, displayRect, rwrDisplayRange), Vector3.zero,
-                        true, (float) type);
+                        true, (float) type);    // HACK! Evil misuse of signalstrength for the treat type!
                     pingWorldPositions[openIndex] = source;
                     StartCoroutine(PingLifeRoutine(openIndex, persistTime));
 
-                    PlayWarningSound(type);
+                    PlayWarningSound(type, (source - vessel.transform.position).sqrMagnitude);
                 }
             }
         }
 
-        void PlayWarningSound(RWRThreatTypes type)
+        void PlayWarningSound(RWRThreatTypes type, float sqrDistance = 0f)
         {
-            if (vessel.isActiveVessel)
+            if (vessel.isActiveVessel && audioSourceRepeatDelay <= 0f)
             {
                 switch (type)
                 {
                     case RWRThreatTypes.MissileLaunch:
-                        audioSource.Stop();
+                        if (audioSource.isPlaying)
+                            break;
                         audioSource.clip = missileLaunchSound;
                         audioSource.Play();
                         break;
 
-                    case RWRThreatTypes.Torpedo:
-                        audioSource.Stop();
-                        audioSource.clip = missileLaunchSound;
+                    case RWRThreatTypes.Sonar:
+                        if (audioSource.isPlaying)
+                            break;
+                        audioSource.clip = sonarPing;
                         audioSource.Play();
+                        break;
+                    case RWRThreatTypes.Torpedo:
+                    case RWRThreatTypes.TorpedoLock:
+                        if (audioSource.isPlaying)
+                            break;
+                        torpedoPingPitch = Mathf.Lerp(1.5f, 1.0f, sqrDistance / (2000 * 2000)); //within 2km increase ping pitch
+                        audioSource.Stop();
+                        audioSource.clip = torpedoPing;
+                        audioSource.pitch = torpedoPingPitch;
+                        audioSource.Play();
+                        audioSourceRepeatDelay = audioSourceRepeatDelayTime;    //set a min repeat delay to prevent too much audi pinging
                         break;
 
                     case RWRThreatTypes.MissileLock:
-                        if (audioSource.clip == missileLaunchSound && audioSource.isPlaying) break;
-                        audioSource.Stop();
+                        if (audioSource.isPlaying)
+                            break;
                         audioSource.clip = (missileLockSound);
                         audioSource.Play();
+                        audioSourceRepeatDelay = audioSourceRepeatDelayTime;    //set a min repeat delay to prevent too much audi pinging
                         break;
+
                     default:
                         if (!audioSource.isPlaying)
                         {
                             audioSource.clip = (radarPingSound);
                             audioSource.Play();
+                            audioSourceRepeatDelay = audioSourceRepeatDelayTime;    //set a min repeat delay to prevent too much audi pinging
                         }
                         break;
                 }
@@ -303,6 +334,9 @@ namespace BDArmory.Radar
             if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && BDArmorySettings.GAME_UI_ENABLED &&
                 vessel.isActiveVessel && rwrEnabled)
             {
+                if (audioSourceRepeatDelay > 0)
+                    audioSourceRepeatDelay -= Time.fixedDeltaTime;
+
                 BDArmorySettings.WindowRectRwr = GUI.Window(94353, BDArmorySettings.WindowRectRwr, RWRWindow,
                     "Radar Warning Receiver", HighLogic.Skin.window);
                 BDGUIUtils.UseMouseEventInRect(BDArmorySettings.WindowRectRwr);
@@ -325,19 +359,20 @@ namespace BDArmory.Radar
             for (int i = 0; i < dataCount; i++)
             {
                 Vector2 pingPosition = (Vector2) pingsData[i].position;
-                pingPosition = Vector2.MoveTowards(displayRect.center, pingPosition, displayRect.center.x - (pingSize/2));
+                //pingPosition = Vector2.MoveTowards(displayRect.center, pingPosition, displayRect.center.x - (pingSize/2));
                 Rect pingRect = new Rect(pingPosition.x - (pingSize/2), pingPosition.y - (pingSize/2), pingSize,
                     pingSize);
+
                 if (pingsData[i].exists)
                 {
-                    if (pingsData[i].signalStrength == 4)
+                    if (pingsData[i].signalStrength == (float)RWRThreatTypes.MissileLock) //Hack! Evil misuse of field signalstrength...
                     {
                         GUI.DrawTexture(pingRect, rwrMissileTexture, ScaleMode.StretchToFill, true);
                     }
                     else
                     {
                         GUI.DrawTexture(pingRect, rwrDiamondTexture, ScaleMode.StretchToFill, true);
-                        GUI.Label(pingRect, iconLabels[Mathf.RoundToInt(pingsData[i].signalStrength)], rwrIconLabelStyle);
+                        GUI.Label(pingRect, iconLabels[Mathf.RoundToInt(pingsData[i].signalStrength)], rwrIconLabelStyle); //Hack! Evil misuse of field signalstrength...
                     }
                 }
             }
@@ -346,7 +381,7 @@ namespace BDArmory.Radar
             while (lw.MoveNext())
             {
                 Vector2 pingPosition = (Vector2) lw.Current.position;
-                pingPosition = Vector2.MoveTowards(displayRect.center, pingPosition, displayRect.center.x - (pingSize/2));
+                //pingPosition = Vector2.MoveTowards(displayRect.center, pingPosition, displayRect.center.x - (pingSize/2));
 
                 Rect pingRect = new Rect(pingPosition.x - (pingSize/2), pingPosition.y - (pingSize/2), pingSize,
                     pingSize);

@@ -279,7 +279,7 @@ namespace BDArmory.Parts
             if (rails.Count == 0)
             {
                 rails.Add(part.FindModelTransform("railTransform"));
-                List<Transform>.Enumerator t = part.FindModelTransforms("newRail").ToList().GetEnumerator();
+                IEnumerator<Transform> t = part.FindModelTransforms("newRail").AsEnumerable().GetEnumerator();
                 while (t.MoveNext())
                 {
                     if (t.Current == null) continue;
@@ -290,7 +290,7 @@ namespace BDArmory.Parts
 
             for (int i = 1; i < rails.Count; i++)
             {
-                List<Transform>.Enumerator t = rails[i].GetComponentsInChildren<Transform>().ToList().GetEnumerator();
+                IEnumerator<Transform> t = rails[i].GetComponentsInChildren<Transform>().AsEnumerable().GetEnumerator();
                 while (t.MoveNext())
                 {
                     if (t.Current == null) continue;
@@ -319,7 +319,7 @@ namespace BDArmory.Parts
                 rails.Add(newRail.transform);
             }
 
-            List<Transform>.Enumerator mt = part.FindModelTransform("rotaryBombBay").GetComponentsInChildren<Transform>().ToList().GetEnumerator();
+            IEnumerator<Transform> mt = part.FindModelTransform("rotaryBombBay").GetComponentsInChildren<Transform>().AsEnumerable().GetEnumerator();
             while (mt.MoveNext())
             {
                 if (mt.Current == null) continue;
@@ -767,7 +767,7 @@ namespace BDArmory.Parts
                     mTf.localPosition = Vector3.zero;
                     mTf.localRotation = Quaternion.identity;
                     mTf.localScale = Vector3.one;
-                    List<Transform>.Enumerator t = tfchildren.ToList().GetEnumerator();
+                    IEnumerator<Transform> t = tfchildren.AsEnumerable().GetEnumerator();
                     while (t.MoveNext())
                     {
                         if (t.Current == null) continue;
@@ -807,11 +807,6 @@ namespace BDArmory.Parts
             missileReferenceTransforms = mrl.ToArray();
 
             UpdateIndexDictionary();
-        }
-
-        //test
-        void OnGUI()
-        {
         }
 
 

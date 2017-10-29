@@ -81,7 +81,7 @@ namespace BDArmory.Control
                 if (loadedVessels.Current == null) continue;
                 if (!loadedVessels.Current.loaded) continue;
                 BDModulePilotAI pilot = null;
-                List<BDModulePilotAI>.Enumerator ePilots = loadedVessels.Current.FindPartModulesImplementing<BDModulePilotAI>().ToList().GetEnumerator();
+                IEnumerator<BDModulePilotAI> ePilots = loadedVessels.Current.FindPartModulesImplementing<BDModulePilotAI>().AsEnumerable().GetEnumerator();
                 while (ePilots.MoveNext())
                 {
                     pilot = ePilots.Current;
@@ -172,8 +172,7 @@ namespace BDArmory.Control
                         {
                             if (ePilots.Current == null) continue;
                             if (ePilots.Current.currentCommand != BDModulePilotAI.PilotCommands.Follow ||
-                                !(Vector3.Distance(ePilots.Current.vessel.CoM, ePilots.Current.commandLeader.vessel.CoM) >
-                                  1000f)) continue;
+                                !((ePilots.Current.vessel.CoM - ePilots.Current.commandLeader.vessel.CoM).sqrMagnitude > 1000f*1000f)) continue;
                             competitionStatus = "Competition: Waiting for teams to get in position.";
                             waiting = true;
                         }

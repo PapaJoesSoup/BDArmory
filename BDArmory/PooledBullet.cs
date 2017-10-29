@@ -208,7 +208,7 @@ namespace BDArmory
 
         void FixedUpdate()
         {
-            float distanceFromStart = Vector3.Distance(transform.position, startPosition);
+            float distanceFromStartSqr = (transform.position - startPosition).sqrMagnitude;
             if (!gameObject.activeInHierarchy)
             {
                 return;
@@ -257,7 +257,7 @@ namespace BDArmory
 
             currPosition = gameObject.transform.position;
 
-            if (distanceFromStart > maxDistance)
+            if (distanceFromStartSqr > maxDistance*maxDistance)
             {
                 //GameObject.Destroy(gameObject);
                 KillBullet();
@@ -681,7 +681,7 @@ namespace BDArmory
                 }
             }
 
-            if (bulletType == PooledBulletTypes.Explosive && airDetonation && distanceFromStart > detonationRange)
+            if (bulletType == PooledBulletTypes.Explosive && airDetonation && distanceFromStartSqr > detonationRange*detonationRange)
             {
                 //detonate
                 ExplosionFX.CreateExplosion(transform.position, radius, blastPower, blastHeat, sourceVessel,

@@ -320,6 +320,15 @@ namespace BDArmory.Parts
             heatThreshold = 50;
             lockedSensorFOV = 5;
             radarLOAL = true;
+
+            // fill activeRadarLockTrackCurve with default values if not set by part config:
+            if ((TargetingMode == TargetingModes.Radar || TargetingModeTerminal == TargetingModes.Radar) && activeRadarRange > 0 && activeRadarLockTrackCurve.minTime == float.MaxValue)
+            {
+                activeRadarLockTrackCurve.Add(0f, 0f);
+                activeRadarLockTrackCurve.Add(activeRadarRange, RadarUtils.MISSILE_DEFAULT_LOCKABLE_RCS);           // TODO: tune & balance constants!
+                if (BDArmorySettings.DRAW_DEBUG_LABELS)
+                    Debug.Log("[BDArmory]: OnStart missile " + shortName + ": setting default locktrackcurve with maxrange/minrcs: " + activeRadarLockTrackCurve.maxTime + "/" + RadarUtils.MISSILE_DEFAULT_LOCKABLE_RCS);
+            }
         }
 
         private void SetupsFields()
@@ -433,6 +442,7 @@ namespace BDArmory.Parts
         {
             WeaponNameWindow.OnActionGroupEditorOpened.Remove(OnActionGroupEditorOpened);
             WeaponNameWindow.OnActionGroupEditorClosed.Remove(OnActionGroupEditorClosed);
+            GameEvents.onPartDie.Remove(PartDie);
         }
 
         private void SetMissileTransform()
@@ -537,20 +547,23 @@ namespace BDArmory.Parts
         private Vector3 CruiseGuidance()
         {
             Vector3 cruiseTarget = Vector3.zero;
-            float distance = Vector3.Distance(TargetPosition, vessel.CoM);
+            float distanceSqr = (TargetPosition - vessel.CoM).sqrMagnitude;
 
-            if (distance < 4500)
+            if (distanceSqr < 4500*4500)
             {
                 cruiseTarget = MissileGuidance.GetAirToGroundTarget(TargetPosition, vessel, 1.85f);
-                debugString += "\nDescending On Target";
+                debugString.Append("Descending On Target");
+                debugString.Append(Environment.NewLine);
             }
             else
             {
                 cruiseTarget = MissileGuidance.GetCruiseTarget(TargetPosition, vessel, CruiseAltitude);
-                debugString += "\nCruising";
+                debugString.Append("Cruising");
+                debugString.Append(Environment.NewLine);
             }
 
-            debugString += "\nRadarAlt: " + MissileGuidance.GetRadarAltitude(vessel);
+            debugString.Append($"RadarAlt: {MissileGuidance.GetRadarAltitude(vessel)}");
+            debugString.Append(Environment.NewLine);
 
             return cruiseTarget;
         }
@@ -559,10 +572,10 @@ namespace BDArmory.Parts
         {
             if (HasMissed) return;
             // if I'm to close to my vessel avoid explosion
-            if (Vector3.Distance(vessel.CoM, SourceVessel.CoM) < 4 * DetonationDistance) return;
+            if ((vessel.CoM - SourceVessel.CoM).sqrMagnitude < 4*DetonationDistance*4*DetonationDistance) return;
             // if I'm getting closer to  my target avoid explosion
-            if (Vector3.Distance(vessel.CoM, targetPosition) >
-                Vector3.Distance(vessel.CoM + (vessel.Velocity() * Time.fixedDeltaTime), targetPosition + (TargetVelocity * Time.fixedDeltaTime))) return;
+            if ((vessel.CoM - targetPosition).sqrMagnitude >
+                (vessel.CoM + (vessel.Velocity() * Time.fixedDeltaTime) - targetPosition + (TargetVelocity * Time.fixedDeltaTime)).sqrMagnitude) return;
 
             if (MissileState != MissileStates.PostThrust) return;
             if (Vector3.Dot(targetPosition - vessel.CoM, vessel.transform.forward) > 0) return;
@@ -578,7 +591,7 @@ namespace BDArmory.Parts
 
         public void GuidanceSteer(FlightCtrlState s)
         {
-            debugString = "";
+            debugString.Length = 0;
             if (guidanceActive && MissileReferenceTransform != null && _velocityTransform != null)
             {
                 Vector3 newTargetPosition = new Vector3();
@@ -685,7 +698,7 @@ namespace BDArmory.Parts
 
         void OnGUI()
         {
-            if (!HighLogic.LoadedSceneIsEditor)
+            if (HighLogic.LoadedSceneIsFlight)
             {
                 drawLabels(); 
             }
@@ -917,7 +930,8 @@ namespace BDArmory.Parts
 
         void OnCollisionEnter(Collision col)
         {
-            Debug.Log("[BDArmory]: Something Collided");
+            if (BDArmorySettings.DRAW_DEBUG_LABELS)
+                Debug.Log("[BDArmory]: Something Collided: "+col.ToString());
 
             if (TimeIndex> 1 && this.part.vessel.speed > 10)
             {

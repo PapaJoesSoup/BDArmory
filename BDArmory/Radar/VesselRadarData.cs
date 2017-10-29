@@ -80,7 +80,7 @@ namespace BDArmory.Radar
         float guiInputCooldown = 0.2f;
 
         //range increments
-        public float[] rIncrements = new float[] {500,2500,5000,10000,20000,40000};
+        public float[] rIncrements = new float[] {500,2500,5000,10000,20000,40000,100000};
         int rangeIndex = 0;
 
         //lock cursor
@@ -199,7 +199,15 @@ namespace BDArmory.Radar
 
         void Start()
         {
-            rangeIndex = rIncrements.Length - 1;
+            rangeIndex = rIncrements.Length - 2;
+
+            //determine configured physics ranges and add a radar range level for the highest range
+            if (vessel.vesselRanges.flying.load > rIncrements[rIncrements.Length-1])
+            {
+                rIncrements = new float[] { 500, 2500, 5000, 10000, 20000, 40000, 100000, vessel.vesselRanges.flying.load };
+                rangeIndex--;
+            }
+
             UpdateLockedTargets();
             List<MissileFire>.Enumerator mf = vessel.FindPartModulesImplementing<MissileFire>().GetEnumerator();
             while (mf.MoveNext())
@@ -282,6 +290,8 @@ namespace BDArmory.Radar
             GameEvents.onVesselDestroy.Remove(OnVesselDestroyed);
             GameEvents.onVesselCreate.Remove(OnVesselDestroyed);
             MissileFire.OnToggleTeam -= OnToggleTeam;
+            GameEvents.onGameStateSave.Remove(OnGameStateSave);
+            GameEvents.onPartDestroyed.Remove(PartDestroyed);
 
             if (weaponManager)
             {
@@ -519,6 +529,7 @@ namespace BDArmory.Radar
             if (origIndex != rangeIndex)
             {
                 pingPositionsDirty = true;
+                UpdateRWRRange();
             }
         }
 
@@ -529,6 +540,19 @@ namespace BDArmory.Radar
             if (origIndex != rangeIndex)
             {
                 pingPositionsDirty = true;
+                UpdateRWRRange();
+            }
+        }
+
+        /// <summary>
+        /// Update the radar range also on the rwr display
+        /// </summary>
+        void UpdateRWRRange()
+        {
+            List<RadarWarningReceiver>.Enumerator rwr = vessel.FindPartModulesImplementing<RadarWarningReceiver>().GetEnumerator();
+            while (rwr.MoveNext())
+            {
+                rwr.Current.rwrDisplayRange = rIncrements[rangeIndex];
             }
         }
 
@@ -617,7 +641,7 @@ namespace BDArmory.Radar
             (
                 radar.canLock
                 && (!radar.locked || radar.currentLocks < radar.maxLocks)
-                && radarTarget.targetData.signalStrength > radar.minLockedSignalThreshold
+                && radarTarget.targetData.signalStrength > radar.radarLockTrackCurve.Evaluate((radarTarget.targetData.predictedPosition - radar.transform.position).magnitude / 1000f)
                 &&
                 (radar.omnidirectional ||
                  Vector3.Angle(radar.transform.up, radarTarget.targetData.predictedPosition - radar.transform.position) <
@@ -672,6 +696,7 @@ namespace BDArmory.Radar
         void OnGUI()
         {
             if (!drawGUI) return;
+
             for (int i = 0; i < lockedTargetIndexes.Count; i++)
             {
                 if (BDArmorySettings.DRAW_DEBUG_LABELS)
@@ -714,7 +739,7 @@ namespace BDArmory.Radar
             }
 
 
-            string windowTitle = "Radar";
+            const string windowTitle = "Radar";
             radarWindowRect = GUI.Window(524141, radarWindowRect, RadarWindow, windowTitle, HighLogic.Skin.window);
             BDGUIUtils.UseMouseEventInRect(radarWindowRect);
 
@@ -727,11 +752,6 @@ namespace BDArmory.Radar
                 BDGUIUtils.UseMouseEventInRect(linkWindowRect);
             }
 
-
-            if (BDArmorySettings.DRAW_DEBUG_LABELS)
-            {
-                GUI.Label(new Rect(800, 800, 800, 800), "radarCount: " + radarCount);
-            }
         }
 
 
@@ -1207,7 +1227,7 @@ namespace BDArmory.Radar
                 {
                     if (v.Current == null || !v.Current.loaded || v.Current == vessel) continue;
                     if (v.Current.id.ToString() != vesselID) continue;
-                    VesselRadarData vrd = v.Current.GetComponent<VesselRadarData>();
+                    VesselRadarData vrd = v.Current.gameObject.GetComponent<VesselRadarData>();
                     if (!vrd) continue;
                     waitingForVessels.Remove(vesselID);
                     StartCoroutine(LinkVRDWhenReady(vrd));
@@ -1264,7 +1284,7 @@ namespace BDArmory.Radar
 
         void RefreshAvailableLinks()
         {
-            if (!HighLogic.LoadedSceneIsFlight || !weaponManager || (FlightGlobals.Vessels == null))
+            if (!HighLogic.LoadedSceneIsFlight || !weaponManager || (FlightGlobals.Vessels == null) || (!FlightGlobals.ready))
             {                
                 return;
             }
@@ -1286,7 +1306,7 @@ namespace BDArmory.Radar
                 mf.Dispose();
 
                 if (team != BDATargetManager.BoolToTeam(weaponManager.team)) continue;
-                VesselRadarData vrd = v.Current.GetComponent<VesselRadarData>();
+                VesselRadarData vrd = v.Current.gameObject.GetComponent<VesselRadarData>();
                 if (vrd && vrd.radarCount > 0)
                 {
                     availableExternalVRDs.Add(vrd);
@@ -1341,11 +1361,11 @@ namespace BDArmory.Radar
 
             if (rData.vessel == vessel) return;
                                     
-            if (rData.vessel.altitude < -20 && radar.rwrThreatType != 6) addContact = false; // Normal Radar Should not detect Underwater vessels
-            if (!rData.vessel.LandedOrSplashed && radar.rwrThreatType == 6) addContact = false; //Sonar should not detect Aircraft
-            if (rData.vessel.altitude < 0 && radar.rwrThreatType == 6 && vessel.Splashed) addContact = true; //Sonar only detects underwater vessels // Sonar should only work when in the water
-            if (!vessel.Splashed && radar.rwrThreatType == 6) addContact = false; // Sonar should only work when in the water
-            if (rData.vessel.Landed && radar.rwrThreatType == 6) addContact = false; //Sonar should not detect land vessels
+            if (rData.vessel.altitude < -20 && radar.rwrThreatType != (int)RadarWarningReceiver.RWRThreatTypes.Sonar) addContact = false; // Normal Radar Should not detect Underwater vessels
+            if (!rData.vessel.LandedOrSplashed && radar.rwrThreatType == (int)RadarWarningReceiver.RWRThreatTypes.Sonar) addContact = false; //Sonar should not detect Aircraft
+            if (rData.vessel.altitude < 0 && radar.rwrThreatType == (int)RadarWarningReceiver.RWRThreatTypes.Sonar && vessel.Splashed) addContact = true; //Sonar only detects underwater vessels // Sonar should only work when in the water
+            if (!vessel.Splashed && radar.rwrThreatType == (int)RadarWarningReceiver.RWRThreatTypes.Sonar) addContact = false; // Sonar should only work when in the water
+            if (rData.vessel.Landed && radar.rwrThreatType == (int)RadarWarningReceiver.RWRThreatTypes.Sonar) addContact = false; //Sonar should not detect land vessels
 
             if (addContact == false) return;
             
@@ -1622,10 +1642,11 @@ namespace BDArmory.Radar
                                    displayedTargets[i].signalPersistTime)*2) - 1;
 
                     //jamming
+                    // NEW: evaluation via radarutils!
                     bool jammed = false;
-                    if (displayedTargets[i].targetData.vesselJammer &&
-                        displayedTargets[i].targetData.vesselJammer.jammerStrength >
-                        displayedTargets[i].targetData.signalStrength)
+                    float distanceToTarget = (this.vessel.transform.position - displayedTargets[i].targetData.position).sqrMagnitude;
+                    float jamDistance = RadarUtils.GetVesselECMJammingDistance(displayedTargets[i].targetData.vessel);
+                    if (displayedTargets[i].targetData.vesselJammer && jamDistance*jamDistance > distanceToTarget)
                     {
                         jammed = true;
                     }

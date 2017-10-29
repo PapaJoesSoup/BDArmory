@@ -95,7 +95,7 @@ namespace BDArmory.Parts
 	    {
 	        if (part != null)
 	        {
-                part.SetDamage(part.maxTemp + 100);
+                part.SetDamage(part.maxTemp*2);
 	        }
 	        Vector3 position = part.vessel.CoM;
 	        ExplosionFX.CreateExplosion(position, blastRadius, blastPower, blastHeat, vessel, FlightGlobals.getUpAxis(),

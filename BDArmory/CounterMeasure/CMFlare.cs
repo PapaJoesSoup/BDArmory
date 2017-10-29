@@ -29,13 +29,18 @@ namespace BDArmory.CounterMeasure
 
         public float thermal; //heat value
         float minThermal;
+        float startThermal;
 
-        float lifeTime = 6;
+        float lifeTime = 5;
 
         void OnEnable()
         {
-            thermal = BDArmorySettings.FLARE_THERMAL*UnityEngine.Random.Range(0.45f, 1.25f);
-            minThermal = thermal*0.35f;
+            // OLD:
+            //thermal = BDArmorySettings.FLARE_THERMAL*UnityEngine.Random.Range(0.45f, 1.25f);
+            // NEW: generate flare within spectrum of emitting vessel's heat signature
+            thermal = BDATargetManager.GetVesselHeatSignature(sourceVessel) * UnityEngine.Random.Range(0.65f, 1.75f);
+            startThermal = thermal;
+            minThermal = startThermal * 0.3f;
 
             if (gaplessEmitters == null || pEmitters == null)
             {
@@ -86,7 +91,7 @@ namespace BDArmory.CounterMeasure
                 lights = gameObject.GetComponentsInChildren<Light>();
             }
 
-            List<Light>.Enumerator lgt = lights.ToList().GetEnumerator();
+            IEnumerator<Light> lgt = lights.AsEnumerable().GetEnumerator();
             while (lgt.MoveNext())
             {
                 if (lgt.Current == null) continue;
@@ -99,7 +104,7 @@ namespace BDArmory.CounterMeasure
             //gameObject.AddComponent<KSPForceApplier>().drag = 0.4f;
 
 
-            BDArmorySettings.Flares.Add(this);
+            BDArmorySettings.Flares.Add(this);            
 
             if (sourceVessel != null)
             {
@@ -167,7 +172,7 @@ namespace BDArmory.CounterMeasure
 
             //thermal decay
             thermal = Mathf.MoveTowards(thermal, minThermal,
-                ((BDArmorySettings.FLARE_THERMAL - minThermal)/lifeTime)*Time.fixedDeltaTime);
+                ((thermal - minThermal)/lifeTime)*Time.fixedDeltaTime);
 
 
             //floatingOrigin fix
@@ -204,7 +209,7 @@ namespace BDArmory.CounterMeasure
                 }
                 gpe.Dispose();
 
-                List<Light>.Enumerator lgt = lights.ToList().GetEnumerator();
+                IEnumerator<Light> lgt = lights.AsEnumerable().GetEnumerator();
                 while (lgt.MoveNext())
                 {
                     if (lgt.Current == null) continue;

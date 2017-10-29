@@ -1,3 +1,47 @@
+﻿v1.0.0
+
+* NEW FEATURES:
+
+  * Radar & Stealth, re-design of how the radar system works:
+    - New radar reflection shader (credit: original great idea by JR!), calculating cross section in m^2:
+       + allows building for stealth using angled surfaces (“scatter those pesky radar waves away!”)
+       + calculation is normalized so that a 1x1 structural plate directly frontally facing the radar yields a return of exactly 1 m^2
+    - Redesign of the radar system, radars all have different ranges & detection performance:
+       + radar part configs changed, new fields (floatcurves) to define detection and lock/track performance, new field to specify ground clutter effectiveness
+    - New in-editor analysis window to help evaluate a craft’s cross section and performance against selectable radars
+    - New options for configuration of radar guided missiles in the part config:
+       + can now explicitly specify active seeker performance (via a FloatCurve, similar to radars)
+       + can now explicitly specify the static radar cross section of a missile for detection purpose
+    - Adjustment of the Chaff countermeasure system: more gradual effect of decoying missiles away (instead of previous “all-or-nothing”)
+    - Adjustment of IR missiles and flare countermeasures: simulating now more of a “imaging infrared” seeker than an old dumb seeker – to be successfully decoyed, flares have to more closely match the thermal spectrum of the part the seeker has locked on to
+
+  * Massive improvements to ballistic missile guidance and modular missiles, ability to simulate ICBM flight paths:
+    - Ballistic guidance has been enhanced to allow firing missiles accurately even at distances greater than 500 km
+    - A new field called BallisticOverShootFactor has been added to missiles, the greater the value the further the missile will go before the terminal maneuver begins
+    - By default all missiles now can steer in vacuum. New field called "vacuumSteerable" can be set to false to disable this behaviour    
+    - Auto SAS activation when the missile is fired. Before it was only activated if the parent vessel had it switched on.
+    - Improved the Cruise and Ballistic Guidance. Ballistic Guidance will switch to AGM guidance as soon as it reached the 50% of the distance
+    - Guard mode in space will consider orbiting vessels as "flying" (air targets), hence engagement of space targets is possible now
+ 
+  * New dedicated sonar ping and torpedo ping sounds, courtesy of PapaJoe!
+
+* FIXES / ENHANCEMENTS:
+
+  * Localization updates (thanks @ACEA)
+  * Fix missile infinite fuel
+  * Fix rwr window invisible in fresh installs
+  * Display ranges of RWR and radar display now linked, selectable display range of radar display up to configured PRE physics max range!
+  * Window position saving also for vesselswitcher
+  * Prevent active radar missiles locking onto anything they see, now obey engagement settings
+  * Sonar pings and torpedos only show on RWR if vessel is splashed/submerged
+  * Fix guard mode "cheating" - now must have detected an enemy with radar/sonar or with visual range before it can attack it
+  * If a cruise missile has terminal guidance, it can be switched off (before launch) in the part action window. The missile will then be purely gps guided without engaging its terminal targeting mode
+  * If debug labels are enabled, upon entering the editor all bda parts & their properties (if relevant for balancing) are dumped into .csv files for convenient analysis in excel
+  * Complete review of all event handlers, should reduce some actual or potential nullrefs upon explosive vessel disassembly
+  * General performance improvements due to code refactoring
+
+
+
 v0.3.0.0
 
 * New DLL Changes - Full reinstall required!
