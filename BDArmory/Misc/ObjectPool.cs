@@ -24,7 +24,7 @@ namespace BDArmory.Misc
         {
             for (int i = 0; i < size; i++)
             {
-                GameObject obj = (GameObject) Instantiate(poolObject);
+                GameObject obj = Instantiate(poolObject);
                 obj.transform.SetParent(transform);
                 obj.SetActive(false);
                 pool.Add(obj);
@@ -39,31 +39,29 @@ namespace BDArmory.Misc
 
         public GameObject GetPooledObject()
         {
-            for (int i = 0; i < pool.Count; i++)
-            {
-                if (!pool[i].activeInHierarchy)
+                for (int i = 0; i < pool.Count; i++)
                 {
-                    //pool[i].SetActive(true);
-                    return pool[i];
+                    if (!pool[i].activeInHierarchy)
+                    {                        
+                        return pool[i];
+                    }
                 }
-            }
 
-            if (canGrow)
-            {
-                if (!poolObject)
+                if (canGrow)
                 {
-                    Debug.LogWarning("Tried to instantiate a pool object but prefab is missing! (" + poolObjectName +
-                                     ")");
-                }
-                GameObject obj = (GameObject) Instantiate(poolObject);
-                obj.transform.SetParent(transform);
+                    if (!poolObject)
+                    {
+                        Debug.LogWarning("Tried to instantiate a pool object but prefab is missing! (" + poolObjectName +
+                                         ")");
+                    }
+                    GameObject obj = Instantiate(poolObject);
+
                 obj.SetActive(false);
-                //obj.SetActive(true);
                 pool.Add(obj);
                 size++;
-                return obj;
-            }
 
+                    return obj;
+                }                
             return null;
         }
 

@@ -513,9 +513,6 @@ namespace BDArmory
             
             // extension for feature_engagementenvelope
             InitializeEngagementRange(0, maxEffectiveDistance);
-
-            bulletBallisticCoefficient = bulletMass / bulletDragArea; //bullets are now in KG
-
             if(shortName == string.Empty)
             {
                 shortName = part.partInfo.title;
@@ -656,7 +653,7 @@ namespace BDArmory
                 fireState = Misc.Misc.SetUpSingleAnimation(fireAnimName, part);
                 fireState.enabled = false;
             }
-            //bulletInfo = BulletInfo.bullets[bulletType];
+
             SetupBullet();
 
             if (bulletInfo == null)
@@ -1058,16 +1055,21 @@ namespace BDArmory
                         //firing bullet
                         GameObject firedBullet = bulletPool.GetPooledObject();
                         PooledBullet pBullet = firedBullet.GetComponent<PooledBullet>();
+
                         firedBullet.transform.position = fireTransform.position;
 
                         pBullet.caliber = bulletInfo.caliber;
                         pBullet.bulletVelocity = bulletInfo.bulletVelocity;
                         pBullet.mass = bulletInfo.bulletMass;
                         pBullet.explosive = bulletInfo.explosive;
-                        pBullet.apBulletMod = bulletInfo.apBulletMod;                     
-                        
+                        pBullet.apBulletMod = bulletInfo.apBulletMod;                  
                         pBullet.bulletDmgMult = bulletDmgMult;
+
+                        //A = π x (Ø / 2)^2
+                        bulletDragArea = Mathf.PI * Mathf.Pow(caliber / 2f, 2f);
+                        bulletBallisticCoefficient = ((bulletMass * 1000) / (bulletDragArea * 0.295f)); //bullets are now in KG
                         pBullet.ballisticCoefficient = bulletBallisticCoefficient;
+
                         pBullet.flightTimeElapsed = 0;
                         pBullet.maxDistance = Mathf.Max(maxTargetingRange, maxEffectiveDistance); //limit distance to weapons maxeffective distance
 
@@ -1156,8 +1158,8 @@ namespace BDArmory
                                 pBullet.dragType = PooledBullet.BulletDragTypes.NumericalIntegration;
                                 break;
                         }
-                        pBullet.bullet = BulletInfo.bullets[bulletType];
 
+                        pBullet.bullet = BulletInfo.bullets[bulletType];
                         pBullet.gameObject.SetActive(true);
 
 
@@ -1381,15 +1383,6 @@ namespace BDArmory
             {
                 Ray ray = new Ray(fireTransforms[i].position, fireTransforms[i].forward);
                 RaycastHit hit;
-                //if (Physics.Raycast(ray, out hit, maxTargetingRange, 2228224))
-                //{
-                //    KerbalEVA hitEVA = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
-                //    if (hitEVA && hitEVA.part.vessel && hitEVA.part.vessel == vessel)
-                //    {
-                //        pointingAtSelf = true;
-                //        break;
-                //    }
-                //}
 
                 if (Physics.Raycast(ray, out hit, maxTargetingRange, 688129))
                 {
@@ -2208,9 +2201,9 @@ namespace BDArmory
         
         void SetupBulletPool()
         {
-            GameObject templateBullet = new GameObject("Bullet");
-            templateBullet.SetActive(false);            
+            GameObject templateBullet = new GameObject("Bullet");                                 
             templateBullet.AddComponent<PooledBullet>();
+            templateBullet.SetActive(false);
             bulletPool = ObjectPool.CreateObjectPool(templateBullet, 100, true, true);
         }
 

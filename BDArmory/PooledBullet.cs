@@ -4,13 +4,13 @@ using System.Linq;
 using BDArmory.Armor;
 using BDArmory.Core.Extension;
 using BDArmory.Core.Module;
+using BDArmory.Core.Utils;
 using BDArmory.FX;
 using BDArmory.Parts;
 using BDArmory.Shaders;
 using BDArmory.UI;
 using UnityEngine;
 using System.Collections.Generic;
-using static BDArmory.Core.Module.ArmorUtils;
 
 namespace BDArmory
 {
@@ -75,8 +75,8 @@ namespace BDArmory
         Light lightFlash;
         bool wasInitiated;
         public Vector3 currentVelocity;
-        public float mass = 5.40133e-5f; 
-        public float caliber = 0;
+        public float mass; 
+        public float caliber = 1;
         public float bulletVelocity; //muzzle velocity
         public bool explosive = false;
         public float apBulletMod = 0;
@@ -92,6 +92,8 @@ namespace BDArmory
         public bool hasRichocheted = false;
 
         public int penTicker = 0;
+
+        public Rigidbody rb;
         #endregion
 
         void OnEnable()
@@ -202,14 +204,30 @@ namespace BDArmory
                 return;
             }
 
-            flightTimeElapsed += TimeWarp.deltaTime; //calculate flight time for drag purposes
+            //calculate flight time for drag purposes
+            flightTimeElapsed += TimeWarp.deltaTime; 
 
             if (bulletDrop && FlightGlobals.RefFrameIsRotating)
             {
-                currentVelocity += FlightGlobals.getGeeForceAtPosition(transform.position)*TimeWarp.deltaTime;
+                // Gravity???
+                //var gravity_ = FlightGlobals.getGeeForceAtPosition(transform.position);
+                var gravity_ = Physics.gravity;
+                currentVelocity += gravity_ * TimeWarp.deltaTime;                                            
             }
 
-            CalculateDragNumericalIntegration();
+            //Drag types currently only affect Impactvelocity 
+            //Numerical Integration is currently Broken
+            switch (dragType)
+            {
+                case BulletDragTypes.None:
+                    break;
+                case BulletDragTypes.AnalyticEstimate:
+                    CalculateDragAnalyticEstimate();
+                    break;
+                case BulletDragTypes.NumericalIntegration:
+                    CalculateDragNumericalIntegration();
+                    break;
+            }
 
             if (tracerLength == 0)
             {
@@ -296,10 +314,8 @@ namespace BDArmory
                             
                             impactVelocity = currentVelocity.magnitude;
                             float anglemultiplier = (float)Math.Cos(Math.PI * hitAngle / 180.0);
-
-                            CalculateDragAnalyticEstimate();                            
-
-                            var penetrationFactor = CalculateArmorPenetration(hitPart, anglemultiplier, hit);
+                                                                    
+                            float penetrationFactor = CalculateArmorPenetration(hitPart, anglemultiplier, hit);
 
                             if (penetrationFactor >= 2)
                             {
@@ -319,15 +335,15 @@ namespace BDArmory
                                 ApplyDamage(hitPart, hit, 1, penetrationFactor);
                                 penTicker += 1;
 
-
                                 //Explosive bullets that penetrate should explode shortly after
                                 //if penetration is very great, they will have moved on 
                                 //checking velocity as they would not be able to come out the other side
-                                if (explosive && penetrationFactor < 2 || currentVelocity.magnitude <= 800f)
+                                //if (explosive && penetrationFactor < 3 || currentVelocity.magnitude <= 800f)
+                                if (explosive)
                                 {
                                     prevPosition = currPosition;
                                     //move bullet            
-                                    transform.position += (currentVelocity * Time.deltaTime) / 2;
+                                    transform.position += (currentVelocity * Time.deltaTime) / 3;
 
                                     ExplosiveDetonation(hitPart, hit, ray);
                                     hasDetonated = true;
@@ -340,7 +356,7 @@ namespace BDArmory
 
                                 if (hitPart.rb != null)
                                 {
-                                    Vector3 finalVelocityVector = hitPart.rb.velocity - this.currentVelocity;
+                                    Vector3 finalVelocityVector = hitPart.rb.velocity - currentVelocity;
                                     float finalVelocityMagnitude = finalVelocityVector.magnitude;
 
                                     float forceAverageMagnitude = finalVelocityMagnitude * finalVelocityMagnitude *
@@ -381,7 +397,7 @@ namespace BDArmory
 
                             //bullet should not go any further if moving too slowly after hit
                             //smaller caliber rounds would be too deformed to do any further damage
-                            if (currentVelocity.magnitude <= 30 || (caliber < 30 && hasPenetrated))
+                            if (currentVelocity.magnitude <= 100 && hasPenetrated)
                             {
                                 if (BDArmorySettings.DRAW_DEBUG_LABELS)
                                 {
@@ -400,8 +416,7 @@ namespace BDArmory
 
             ///////////////////////////////////////////////////////////////////////
             //Bullet Translation
-            ///////////////////////////////////////////////////////////////////////
-                       
+            ///////////////////////////////////////////////////////////////////////                     
 
             prevPosition = currPosition;
             //move bullet            
@@ -420,15 +435,14 @@ namespace BDArmory
                 BulletHitFX.CreateBulletHit(hit.point, hit.normal, hasRichocheted, caliber);
             }
 
-            hitPart.AddDamage_Ballistic(mass, caliber, multiplier, penetrationfactor, BDArmorySettings.DMG_MULTIPLIER, bulletDmgMult, impactVelocity);
+            hitPart.AddDamage_Ballistic(mass, caliber, multiplier, penetrationfactor,
+                                        BDArmorySettings.DMG_MULTIPLIER, bulletDmgMult,
+                                        impactVelocity,explosive);
    
         }
 
         private void CalculateDragNumericalIntegration()
-        {
-            if (!bulletDrop) return;
-            if (dragType == BulletDragTypes.NumericalIntegration)
-            {
+        {       
                 Vector3 dragAcc = currentVelocity * currentVelocity.magnitude *
                                   (float)
                                   FlightGlobals.getAtmDensity(FlightGlobals.getStaticPressure(transform.position),
@@ -438,30 +452,25 @@ namespace BDArmory
 
                 currentVelocity -= dragAcc * TimeWarp.deltaTime;
                 //numerical integration; using Euler is silly, but let's go with it anyway
-            }
+           
         }
 
         private void CalculateDragAnalyticEstimate()
         {
-            if (!bulletDrop) return;
-            if (dragType == BulletDragTypes.AnalyticEstimate)
-            {
-                float analyticDragVelAdjustment =
-                    (float)
-                    FlightGlobals.getAtmDensity(FlightGlobals.getStaticPressure(currPosition),
-                        FlightGlobals.getExternalTemperature(currPosition));
-                analyticDragVelAdjustment *= flightTimeElapsed * initialSpeed;
-                analyticDragVelAdjustment += 2 * ballisticCoefficient;
+            float analyticDragVelAdjustment = (float)FlightGlobals.getAtmDensity(FlightGlobals.getStaticPressure(currPosition), FlightGlobals.getExternalTemperature(currPosition));
+            analyticDragVelAdjustment *= flightTimeElapsed * initialSpeed;
+            analyticDragVelAdjustment += 2 * ballisticCoefficient;
 
-                analyticDragVelAdjustment = 2 * ballisticCoefficient * initialSpeed / analyticDragVelAdjustment;
-                //velocity as a function of time under the assumption of a projectile only acted upon by drag with a constant drag area
+            analyticDragVelAdjustment = 2 * ballisticCoefficient * initialSpeed / analyticDragVelAdjustment;
+            //velocity as a function of time under the assumption of a projectile only acted upon by drag with a constant drag area
 
-                analyticDragVelAdjustment = analyticDragVelAdjustment - initialSpeed;
-                //since the above was velocity as a function of time, but we need a difference in drag, subtract the initial velocity
-                //the above number should be negative...
-                impactVelocity += analyticDragVelAdjustment; //so add it to the impact velocity
-            }
-        }
+            analyticDragVelAdjustment = analyticDragVelAdjustment - initialSpeed;
+            //since the above was velocity as a function of time, but we need a difference in drag, subtract the initial velocity
+            //the above number should be negative...
+
+            impactVelocity += analyticDragVelAdjustment; //so add it to the impact velocity
+
+       }
 
         private float CalculateArmorPenetration( Part hitPart, float anglemultiplier, RaycastHit hit)
         {
@@ -492,12 +501,13 @@ namespace BDArmory
                 //does not affect low impact parts so that rounds can go through entire tank easily              
                 //If round penetrates easily it should not loose much velocity
 
-                if(penetrationFactor < 2) currentVelocity = currentVelocity * (float)Math.Sqrt(thickness / penetration);
-                if (penTicker > 0) currentVelocity *= 0.85f; //signifincanly reduce velocity on subsequent penetrations
+                //if (penetrationFactor < 2)
+                currentVelocity = currentVelocity * (float)Math.Sqrt(thickness / penetration);
+                //signifincanly reduce velocity on subsequent penetrations
+                if (penTicker > 0) currentVelocity *= 0.55f; 
 
                 //updating impact velocity
-                impactVelocity = currentVelocity.magnitude;
-                CalculateDragAnalyticEstimate();
+                //impactVelocity = currentVelocity.magnitude;
 
                 flightTimeElapsed -= Time.deltaTime;
                 prevPosition = transform.position;
@@ -521,8 +531,7 @@ namespace BDArmory
             if (caliber > 10) //use the "krupp" penetration formula for anything larger then HMGs
             {
                 penetration = (float)(16f * impactVelocity * Math.Sqrt(mass/1000) / Math.Sqrt(caliber));
-            }
-            //if (apBulletDmg != 0) penetration += apBulletDmg;
+            }          
 
             return penetration;
         }

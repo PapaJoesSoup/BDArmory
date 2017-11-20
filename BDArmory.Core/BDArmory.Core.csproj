@@ -46,6 +46,7 @@
     <Compile Include="Services\NotificableService.cs" />
     <Compile Include="Services\ModuleDamageService.cs" />
     <Compile Include="Utils\BlastPhysicsUtils.cs" />
+    <Compile Include="Utils\BulletPhysics.cs" />
     <Compile Include="Utils\DebugUtils.cs" />
   </ItemGroup>
   <ItemGroup>

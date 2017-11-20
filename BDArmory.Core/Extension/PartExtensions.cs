@@ -83,7 +83,8 @@ namespace BDArmory.Core.Extension
                                                float penetrationfactor,
                                                float DMG_MULTIPLIER,
                                                float bulletDmgMult,
-                                               float impactVelocity)
+                                               float impactVelocity,
+                                               bool explosive)
         {
             
 
@@ -95,8 +96,11 @@ namespace BDArmory.Core.Extension
 
             double damage = ((0.5f * (mass * Math.Pow(impactVelocity, 2)))
                             * (DMG_MULTIPLIER / 100) * bulletDmgMult
-                            * 1e-5f);
+                            * 1e-4f);
 
+            //Explosive bullets should not cause much penetration damage, most damage needs to come from explosion
+            if (explosive) damage *= 0.25f;
+            
             //penetration multipliers   
             damage *= multiplier * Mathf.Clamp(penetrationfactor,penetrationfactor,1.5f);
 
