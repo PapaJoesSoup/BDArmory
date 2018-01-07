@@ -1598,13 +1598,10 @@ namespace BDArmory
             {
                 if (targetAcquired)
                 {
-                    Debug.Log("firing solution for acquired target");
                     FiringSolutionVector = calculateFiringSolution(targetPosition, targetVelocity - vessel.Velocity(), targetAcceleration);
-                    Debug.Log(FiringSolutionVector);
                 }
                 else if (vessel.altitude < 6000)
                 {
-                    Debug.Log("firing solution for ground");
                     FiringSolutionVector = calculateFiringSolution(targetPosition, -(part.rb.velocity + Krakensbane.GetFrameVelocityV3f()), Vector3.zero);
                 }
 
