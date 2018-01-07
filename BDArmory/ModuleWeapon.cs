@@ -1594,57 +1594,19 @@ namespace BDArmory
 
                 if (targetAcquired)
                 {
-                    float time2 = VectorUtils.CalculateLeadTime(finalTarget - fireTransforms[0].position,
-                        targetVelocity - vessel.Velocity(), bulletVelocity);
-                    if (time2 > 0) time = time2;
-
-                    Vector3 intermediateTarget = finalTarget;
-
-                    // If a ballistic weapon with drag, estimate a first order drag approximation
-                    // Always use AnalyticEstimate, because the current implementation of numerical integration calculates instant drag
-                    // so while using it over a period of FixedUpdate is fine, calculating it for the whole trajectory will produce garbage
-                    // (essentially, AnalyticEstimate is the estimation of NumericalIntegration over longer periods)
-                    Vector3 trueBulletVelocity = Vector3.zero; // for drag purposes
-                    if (bulletDragType != PooledBullet.BulletDragTypes.None)
-                    {
-                        trueBulletVelocity = part.rb.velocity + Krakensbane.GetFrameVelocityV3f() + fireTransforms[0].forward * bulletVelocity;
-                        intermediateTarget += 0.5f * time * PooledBullet.CalculateDragAnalyticEstimate(
-                                fireTransforms[0].position, trueBulletVelocity, bulletBallisticCoefficient, time);
-                    }
-
-                    //target vessel relative velocity compensation
-                    intermediateTarget += (targetVelocity - vessel.Velocity()) * time;
-                    //target acceleration compensation
-                    intermediateTarget += (0.5f * targetAcceleration * time * time);
-
-
-                    //reestimate lead time taking into account bullet drag and acceleration
-                    time2 = VectorUtils.CalculateLeadTime(intermediateTarget - fireTransforms[0].position, targetVelocity - vessel.Velocity(),
-                        bulletVelocity);
-                    if (time2 > 0) time = time2;
-
-                    //repeat as before
-                    finalTarget += (targetVelocity - vessel.Velocity()) * time;
-                    finalTarget += (0.5f * targetAcceleration * time * time);
-                    if (bulletDragType != PooledBullet.BulletDragTypes.None)
-                        finalTarget += 0.5f * time * PooledBullet.CalculateDragAnalyticEstimate(
-                                fireTransforms[0].position, trueBulletVelocity, bulletBallisticCoefficient, time);
+                    finalTarget += estimateTargetOffset(
+                        finalTarget,
+                        targetVelocity - vessel.Velocity(),
+                        targetAcceleration,
+                        out time);
                 }
                 else if (vessel.altitude < 6000)
                 {
-                    Vector3 rigidbodyVelocity = part.rb.velocity + Krakensbane.GetFrameVelocityV3f();
-                    float time2 = VectorUtils.CalculateLeadTime(finalTarget - fireTransforms[0].position,
-                        -rigidbodyVelocity, bulletVelocity);
-                    if (time2 > 0) time = time2;
-                    finalTarget += (-rigidbodyVelocity * (time + Time.fixedDeltaTime));
-                    //this vessel velocity compensation against stationary
-
-                    //one step of drag estimation
-                    if (bulletDragType != PooledBullet.BulletDragTypes.None)
-                        finalTarget += 0.5f * time * PooledBullet.CalculateDragAnalyticEstimate(
-                                fireTransforms[0].position,
-                                part.rb.velocity + Krakensbane.GetFrameVelocityV3f() + fireTransforms[0].forward * bulletVelocity,
-                                bulletBallisticCoefficient, time);
+                    finalTarget += estimateTargetOffset(
+                        finalTarget,
+                        -(part.rb.velocity + Krakensbane.GetFrameVelocityV3f()),
+                        Vector3.zero,
+                        out time);
                 }
                 Vector3 up = (finalTarget - vessel.mainBody.transform.position).normalized;
                 if (bulletDrop && vessel.srfSpeed < 750)
