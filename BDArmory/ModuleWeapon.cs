@@ -707,7 +707,7 @@ namespace BDArmory
                     if ((userFiring || autoFire || agHoldFiring) &&
                         (yawRange == 0 || (maxPitch - minPitch) == 0 ||
                          turret.TargetInRange(finalAimTarget, 10, float.MaxValue) 
-                         || (FiringSolutionVector != null 
+                         || (FiringSolutionVector != null
                          && Vector3.Angle((Vector3)FiringSolutionVector, fireTransforms[0].forward) < 10)))
                     {
                         if (useRippleFire && (pointingAtSelf || isOverheated))
@@ -1635,7 +1635,7 @@ namespace BDArmory
                 }
                 turret.AimToTarget(
                     FiringSolutionVector != null 
-                    ? part.transform.position + (Vector3)FiringSolutionVector * maxEffectiveDistance * 0.9f
+                    ? part.transform.position + (Vector3)FiringSolutionVector * 1099511627776 // 2^40
                     // because I cannot figure out why the AimToTarget method aims sideways without the large number multiplier
                     : finalAimTarget);
                 turret.smoothRotation = origSmooth;
@@ -1645,6 +1645,9 @@ namespace BDArmory
         private Vector3? calculateFiringSolution(Vector3 target, Vector3 relativeVelocity, Vector3 targetAcceleration)
         {
             const float simDeltaTime = 0.155f;
+            // because I suspect the simulation overestimates drag a bit, probably due to larger time step
+            // though equally likely it's ModuleTurret.AimToTarget() not doing what I think it should
+            const float dragCorrectiveFactor = 0.98f;
             float hitSqrThreshold = Mathf.Pow((fireTransforms[0].position - target).magnitude / 8192, 2); // no reason for the 8192, just a number
             float sqrMaxRange = maxEffectiveDistance * maxEffectiveDistance;
             Vector3 upDir = VectorUtils.GetUpDirection(fireTransforms[0].position);
@@ -1675,7 +1678,7 @@ namespace BDArmory
 
                     if (bulletDrop) simVelocity += FlightGlobals.getGeeForceAtPosition(simCurrPos) * simDeltaTime;
                     simVelocity += PooledBullet.CalculateDrag(bulletDragType, simCurrPos,
-                        simVelocity + referenceFrameSpeed, bulletBallisticCoefficient, simDeltaTime);
+                        simVelocity + referenceFrameSpeed, bulletBallisticCoefficient, simDeltaTime) * dragCorrectiveFactor;
                     simCurrPos += simVelocity * simDeltaTime;
                     ++simulationSteps;
                 }
@@ -1695,9 +1698,7 @@ namespace BDArmory
                 //Debug.Log($"step {simulationSteps}, passDistance: {closestPassSqrDistance}, solution vector {solutionVector}");
 
                 // if close enough return
-                // note the dot product runs into floating point limits at longer ranges, but that's probably sufficient accuracy
-                double cosAngle = Vector3d.Dot((projectedTarget - simStartPos).normalized, (closestPass - simStartPos).normalized);
-                if (closestPassSqrDistance < hitSqrThreshold || cosAngle >= 1)
+                if (closestPassSqrDistance < hitSqrThreshold)
                 {
                     // looks like we need these things someplace
                     targetLeadDistance = Vector3.Distance(projectedTarget, fireTransforms[0].position);
@@ -1714,12 +1715,12 @@ namespace BDArmory
                     return null;
                 prevSqrClosestPass = closestPassSqrDistance;
 
-                //else adjust solutionVector
-                //Debug.Log($"adjusting solution: {projectedTarget - closestPass}, {(projectedTarget - simStartPos).normalized}, {(closestPass - simStartPos).normalized}, {Vector3.Dot((projectedTarget - simStartPos).normalized, (closestPass - simStartPos).normalized)}");
-                //Debug.Log($"adjusting solution: {Math.Acos(cosAngle) * Mathf.Rad2Deg} degrees");
+                // else adjust solutionVector
+                // we actually need the double precision for the angle, that one is completely intentional
+                //Debug.Log($"adjusting solution: {Vector3d.Angle(projectedTarget - simStartPos, closestPass - simStartPos) * Mathf.Deg2Rad} degrees");
                 solutionVector = Vector3.RotateTowards(solutionVector, 
                     upDir * Vector3.Dot(upDir, projectedTarget - closestPass), 
-                    (float)Math.Acos(cosAngle), 0);
+                    (float)Vector3d.Angle(projectedTarget - simStartPos, closestPass - simStartPos) * Mathf.Deg2Rad, 0);
             }
         }
 
@@ -1802,6 +1803,7 @@ namespace BDArmory
                 else //ballistic/cannon weapons
                 {
                     float simDeltaTime = 0.155f;
+                    const float dragCorrectiveFactor = 0.98f;
 
                     Vector3 simVelocity = part.rb.velocity + (bulletVelocity * fireTransform.forward);
                     Vector3 simCurrPos = fireTransform.position + (part.rb.velocity * Time.fixedDeltaTime);
@@ -1818,7 +1820,7 @@ namespace BDArmory
                         RaycastHit hit;
                         if (bulletDrop) simVelocity += FlightGlobals.getGeeForceAtPosition(simCurrPos) * simDeltaTime;
                         simVelocity += PooledBullet.CalculateDrag(bulletDragType, simCurrPos, 
-                            simVelocity + referenceFrameSpeed, bulletBallisticCoefficient, simDeltaTime);
+                            simVelocity + referenceFrameSpeed, bulletBallisticCoefficient, simDeltaTime) * dragCorrectiveFactor;
                         simCurrPos += simVelocity * simDeltaTime;
                         pointPositions.Add(simCurrPos);
 
