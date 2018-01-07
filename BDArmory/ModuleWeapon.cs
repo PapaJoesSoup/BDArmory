@@ -78,7 +78,6 @@ namespace BDArmory
         public float autoFireTimer = 0;
 
         //used by AI to lead moving targets
-        private float targetDistance;
         private Vector3 targetPosition;
         private Vector3 targetVelocity;
         private Vector3 targetAcceleration;
@@ -106,7 +105,8 @@ namespace BDArmory
         Vector3 bulletPrediction;
         Vector3 fixedLeadOffset = Vector3.zero;
         float targetLeadDistance;
-        
+        public Vector3? FiringSolutionVector { get; private set; }
+
         //gapless particles
         List<BDAGaplessParticleEmitter> gaplessEmitters = new List<BDAGaplessParticleEmitter>();
 
@@ -917,6 +917,12 @@ namespace BDArmory
                         BDGUIUtils.DrawLineBetweenWorldPositions(fireTransforms[0].position, targetPosition, 2,
                             Color.blue);
                     }
+                    if (FiringSolutionVector != null)
+                    {
+                        BDGUIUtils.DrawLineBetweenWorldPositions(fireTransforms[0].position, 
+                            fireTransforms[0].position + (Vector3)FiringSolutionVector * 15, 4,
+                            Color.yellow);
+                    }
                 }
             }
 
@@ -1581,41 +1587,23 @@ namespace BDArmory
 
 
             //aim assist
-            Vector3 finalTarget = targetPosition;
-            Vector3 originalTarget = targetPosition;
-            targetDistance = Vector3.Distance(finalTarget, transform.position);
-            targetLeadDistance = targetDistance;
+            targetLeadDistance = Vector3.Distance(targetPosition, transform.position);
+            fixedLeadOffset = Vector3.zero;
+            finalAimTarget = targetPosition;
+            FiringSolutionVector = null;
+
             if ((BDArmorySettings.AIM_ASSIST || aiControlled) && eWeaponType != WeaponTypes.Laser)
             {
-                float gAccel = ((float)FlightGlobals.getGeeForceAtPosition(finalTarget).magnitude
-                    + (float)FlightGlobals.getGeeForceAtPosition(fireTransforms[0].position).magnitude) / 2; // Average G-force
-                float time = targetDistance / bulletVelocity;
-
-
+                Debug.Log("calculating firing solution");
                 if (targetAcquired)
                 {
-                    finalTarget += estimateTargetOffset(
-                        finalTarget,
-                        targetVelocity - vessel.Velocity(),
-                        targetAcceleration,
-                        out time);
+                    FiringSolutionVector = calculateFiringSolution(targetPosition, targetVelocity - vessel.Velocity(), targetAcceleration);
                 }
                 else if (vessel.altitude < 6000)
                 {
-                    finalTarget += estimateTargetOffset(
-                        finalTarget,
-                        -(part.rb.velocity + Krakensbane.GetFrameVelocityV3f()),
-                        Vector3.zero,
-                        out time);
+                    FiringSolutionVector = calculateFiringSolution(targetPosition, -(part.rb.velocity + Krakensbane.GetFrameVelocityV3f()), Vector3.zero);
                 }
-                Vector3 up = (finalTarget - vessel.mainBody.transform.position).normalized;
-                if (bulletDrop && vessel.srfSpeed < 750)
-                    finalTarget += (0.5f * gAccel * time * time * up); //gravity compensation
-
-                targetLeadDistance = Vector3.Distance(finalTarget, fireTransforms[0].position);
-
-                fixedLeadOffset = originalTarget - finalTarget; //for aiming fixed guns to moving target	
-
+                Debug.Log("firing solution calculated");
 
                 //airdetonation
                 if (airDetonation)
@@ -1635,9 +1623,7 @@ namespace BDArmory
             {
                 detonationRange *= UnityEngine.Random.Range(0.96f, 1.04f);
             }
-
-            finalAimTarget = finalTarget;
-
+            
             //final turret aiming
             if (slaved && !targetAcquired) return;
             if (turret)
@@ -1647,45 +1633,82 @@ namespace BDArmory
                 {
                     turret.smoothRotation = false;
                 }
-                turret.AimToTarget(finalTarget);
+                turret.AimToTarget(
+                    FiringSolutionVector != null 
+                    ? part.transform.position + (Vector3)FiringSolutionVector * maxEffectiveDistance * 0.9f
+                    // because I cannot figure out why the AimToTarget method aims sideways without the large number multiplier
+                    : finalAimTarget);
                 turret.smoothRotation = origSmooth;
             }
         }
 
-        private Vector3 estimateTargetOffset(Vector3 target, Vector3 relativeVelocity, Vector3 targetAcceleration, out float time, int iterationSteps = 10)
+        private Vector3? calculateFiringSolution(Vector3 target, Vector3 relativeVelocity, Vector3 targetAcceleration)
         {
-            time = Vector3.Distance(target, transform.position) / bulletVelocity;
-            Debug.Log($"initial time estimate: {time}");
-            Vector3 trueBulletVelocity = part.rb.velocity + Krakensbane.GetFrameVelocityV3f() + fireTransforms[0].forward * bulletVelocity;
-            Vector3 intermediateTarget = target;
-            Debug.Log($"relVel: {relativeVelocity}, accel: {targetAcceleration}, truVel: {trueBulletVelocity}, bulVel: {bulletVelocity}");
+            const float simDeltaTime = 0.155f;
+            float hitSqrThreshold = Mathf.Pow((fireTransforms[0].position - target).magnitude / 8192, 2); // no reason for the 8192, just a number
+            float sqrMaxRange = maxEffectiveDistance * maxEffectiveDistance;
 
-            for (int iteration = 0; iteration < iterationSteps; iteration++)
+            Vector3 solutionVector = (target - fireTransforms[0].position).normalized;
+            Vector3 simStartPos = fireTransforms[0].position + (part.rb.velocity * Time.fixedDeltaTime);
+            Vector3 referenceFrameSpeed = Krakensbane.GetFrameVelocityV3f();
+            Vector3 projectedTarget = target;
+            float prevSqrClosestPass = float.PositiveInfinity;
+
+            while (true)
             {
-                float time2 = VectorUtils.CalculateLeadTime(intermediateTarget - fireTransforms[0].position, relativeVelocity, bulletVelocity);
-                Debug.Log($"iteration {iteration} time estimate: {time2}");
-                if (time2 > 0) time = time2;
-                else break; // no solution exists already at this point of iteration
+                // simulate a trajectory with the current fire transform
+                Vector3 simCurrPos = simStartPos;
+                Vector3 simVelocity = part.rb.velocity + (bulletVelocity * solutionVector);
+                Vector3 simPrevPos = simCurrPos;
+                int simulationSteps = -1;
 
-                intermediateTarget = target;
-
-                // Always use AnalyticEstimate, if drag is on, because the current implementation of numerical integration calculates instant drag
-                // so while using it over a period of FixedUpdate is fine, calculating it for the whole trajectory will produce garbage
-                // (essentially, AnalyticEstimate is the estimation of NumericalIntegration over longer periods)
-                if (bulletDragType != PooledBullet.BulletDragTypes.None)
+                while ((projectedTarget - simCurrPos).sqrMagnitude <= ((projectedTarget - simPrevPos).sqrMagnitude))
                 {
-                    intermediateTarget -= (2f / 3f) * time * PooledBullet.CalculateDragAnalyticEstimate(
-                            fireTransforms[0].position, trueBulletVelocity, bulletBallisticCoefficient, time);
+                    simPrevPos = simCurrPos;
+
+                    if (bulletDrop) simVelocity += FlightGlobals.getGeeForceAtPosition(simCurrPos) * simDeltaTime;
+                    simVelocity += PooledBullet.CalculateDrag(bulletDragType, simCurrPos,
+                        simVelocity + referenceFrameSpeed, bulletBallisticCoefficient, simDeltaTime);
+                    simCurrPos += simVelocity * simDeltaTime;
+                    ++simulationSteps;
                 }
 
-                //target acceleration compensation
-                intermediateTarget += (0.5f * targetAcceleration * time * time);
+                // predict target movement
+                projectedTarget = target + (relativeVelocity + targetAcceleration * simulationSteps * simDeltaTime / 2) * simulationSteps * simDeltaTime;
+
+                // if target is out of range abort
+                if ((projectedTarget - simStartPos).sqrMagnitude > sqrMaxRange)
+                    return null;
+
+                // calculate closest pass
+                Vector3 velDir = simVelocity.normalized;
+                Vector3 closestPass = simPrevPos + velDir * Vector3.Dot((projectedTarget - simPrevPos), velDir);
+                float closestPassSqrDistance = (projectedTarget - closestPass).sqrMagnitude;
+
+                Debug.Log($"step {simulationSteps}, passDistance: {closestPassSqrDistance}, solution vector {solutionVector}");
+
+                // if close enough return
+                if (closestPassSqrDistance < hitSqrThreshold)
+                {
+                    // looks like we need these things someplace
+                    targetLeadDistance = Vector3.Distance(projectedTarget, fireTransforms[0].position);
+                    fixedLeadOffset = target - projectedTarget; //for aiming fixed guns to moving target	
+                    finalAimTarget = projectedTarget;
+                    // though I'd say use FiringSolution instead, if feasible
+
+                    return solutionVector;
+                }
+
+                // if getting further away, target is beyond max ballistic trajectory, raising it more won't help
+                if (closestPassSqrDistance > prevSqrClosestPass)
+                    return null;
+                prevSqrClosestPass = closestPassSqrDistance;
+
+                //else adjust solutionVector
+                Debug.Log($"adjusting solution: {projectedTarget - closestPass}, {(projectedTarget - simStartPos).normalized}, {(closestPass - simStartPos).normalized}, {Vector3.Dot((projectedTarget - simStartPos).normalized, (closestPass - simStartPos).normalized)}");
+                solutionVector = Vector3.RotateTowards(solutionVector, projectedTarget - closestPass,
+                    Mathf.Acos(Vector3.Dot((projectedTarget - simStartPos).normalized, (closestPass - simStartPos).normalized)), 0);
             }
-
-            //target vessel relative velocity compensation
-            intermediateTarget += relativeVelocity * time;
-
-            return intermediateTarget - target;
         }
 
         IEnumerator AimAndFireAtEndOfFrame()
