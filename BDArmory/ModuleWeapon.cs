@@ -1652,44 +1652,40 @@ namespace BDArmory
             }
         }
 
-        private Vector3 estimateTargetOffset(Vector3 target, Vector3 relativeVelocity, Vector3 targetAcceleration, out float time)
+        private Vector3 estimateTargetOffset(Vector3 target, Vector3 relativeVelocity, Vector3 targetAcceleration, out float time, int iterationSteps = 10)
         {
             time = Vector3.Distance(target, transform.position) / bulletVelocity;
-            float time2 = VectorUtils.CalculateLeadTime(target - fireTransforms[0].position,
-                relativeVelocity, bulletVelocity);
-            if (time2 > 0) time = time2;
-
+            Debug.Log($"initial time estimate: {time}");
+            Vector3 trueBulletVelocity = part.rb.velocity + Krakensbane.GetFrameVelocityV3f() + fireTransforms[0].forward * bulletVelocity;
             Vector3 intermediateTarget = target;
+            Debug.Log($"relVel: {relativeVelocity}, accel: {targetAcceleration}, truVel: {trueBulletVelocity}, bulVel: {bulletVelocity}");
 
-            // If a ballistic weapon with drag, estimate a first order drag approximation
-            // Always use AnalyticEstimate, because the current implementation of numerical integration calculates instant drag
-            // so while using it over a period of FixedUpdate is fine, calculating it for the whole trajectory will produce garbage
-            // (essentially, AnalyticEstimate is the estimation of NumericalIntegration over longer periods)
-            Vector3 trueBulletVelocity = Vector3.zero; // for drag purposes
-            if (bulletDragType != PooledBullet.BulletDragTypes.None)
+            for (int iteration = 0; iteration < iterationSteps; iteration++)
             {
-                trueBulletVelocity = part.rb.velocity + Krakensbane.GetFrameVelocityV3f() + fireTransforms[0].forward * bulletVelocity;
-                intermediateTarget += 0.5f * time * PooledBullet.CalculateDragAnalyticEstimate(
-                        fireTransforms[0].position, trueBulletVelocity, bulletBallisticCoefficient, time);
+                float time2 = VectorUtils.CalculateLeadTime(intermediateTarget - fireTransforms[0].position, relativeVelocity, bulletVelocity);
+                Debug.Log($"iteration {iteration} time estimate: {time2}");
+                if (time2 > 0) time = time2;
+                else break; // no solution exists already at this point of iteration
+
+                intermediateTarget = target;
+
+                // Always use AnalyticEstimate, if drag is on, because the current implementation of numerical integration calculates instant drag
+                // so while using it over a period of FixedUpdate is fine, calculating it for the whole trajectory will produce garbage
+                // (essentially, AnalyticEstimate is the estimation of NumericalIntegration over longer periods)
+                if (bulletDragType != PooledBullet.BulletDragTypes.None)
+                {
+                    intermediateTarget -= (2f / 3f) * time * PooledBullet.CalculateDragAnalyticEstimate(
+                            fireTransforms[0].position, trueBulletVelocity, bulletBallisticCoefficient, time);
+                }
+
+                //target acceleration compensation
+                intermediateTarget += (0.5f * targetAcceleration * time * time);
             }
 
             //target vessel relative velocity compensation
             intermediateTarget += relativeVelocity * time;
-            //target acceleration compensation
-            intermediateTarget += (0.5f * targetAcceleration * time * time);
 
-            //reestimate lead time taking into account bullet drag and acceleration
-            time2 = VectorUtils.CalculateLeadTime(intermediateTarget - fireTransforms[0].position, relativeVelocity,
-                bulletVelocity);
-            if (time2 > 0) time = time2;
-
-            //repeat as before
-            Vector3 targetOffset = relativeVelocity * time;
-            targetOffset += (0.5f * targetAcceleration * time * time);
-            if (bulletDragType != PooledBullet.BulletDragTypes.None)
-                targetOffset += 0.5f * time * PooledBullet.CalculateDragAnalyticEstimate(
-                        fireTransforms[0].position, trueBulletVelocity, bulletBallisticCoefficient, time);
-            return targetOffset;
+            return intermediateTarget - target;
         }
 
         IEnumerator AimAndFireAtEndOfFrame()
