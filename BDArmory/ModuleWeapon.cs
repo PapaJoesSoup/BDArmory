@@ -553,6 +553,16 @@ namespace BDArmory
             }
             mtf.Dispose();
 
+            // precalculate ballistic coefficient
+            //A = π x (Ø / 2)^2
+            bulletDragArea = Mathf.PI * Mathf.Pow(caliber / 2f, 2f);
+
+            //Bc = m/Cd * A
+            bulletBallisticCoefficient = bulletMass / ((bulletDragArea / 1000000f) * 0.295f); // mm^2 to m^2
+
+            //Bc = m/d^2 * i where i = 0.484
+            //bulletBallisticCoefficient = bulletMass / Mathf.Pow(caliber / 1000, 2f) * 0.484f;
+
             if (HighLogic.LoadedSceneIsFlight)
             {
                 if (eWeaponType != WeaponTypes.Laser)
@@ -1057,16 +1067,6 @@ namespace BDArmory
                         pBullet.explosive = bulletInfo.explosive;
                         pBullet.apBulletMod = bulletInfo.apBulletMod;                  
                         pBullet.bulletDmgMult = bulletDmgMult;
-
-                        //A = π x (Ø / 2)^2
-                        bulletDragArea = Mathf.PI * Mathf.Pow(caliber / 2f, 2f);
-
-                        //Bc = m/Cd * A
-                        bulletBallisticCoefficient = bulletMass / ((bulletDragArea / 1000000f) * 0.295f); // mm^2 to m^2
-                        
-                        //Bc = m/d^2 * i where i = 0.484
-                        //bulletBallisticCoefficient = bulletMass / Mathf.Pow(caliber / 1000, 2f) * 0.484f;
-
                         pBullet.ballisticCoefficient = bulletBallisticCoefficient;
 
                         pBullet.maxDistance = Mathf.Max(maxTargetingRange, maxEffectiveDistance); //limit distance to weapons maxeffective distance
