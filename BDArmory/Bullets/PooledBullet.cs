@@ -249,7 +249,7 @@ namespace BDArmory
 
                 float dist = currentVelocity.magnitude * Time.fixedDeltaTime;
                 Ray ray = new Ray(currPosition, currentVelocity);                
-                var hits = Physics.RaycastAll(ray, dist, 688129);
+                var hits = Physics.RaycastAll(ray, dist, 9076737);
                 if (hits.Length > 0)
                 {
                     var orderedHits = hits.OrderBy(x => x.distance);

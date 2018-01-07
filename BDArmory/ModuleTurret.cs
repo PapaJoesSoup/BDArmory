@@ -24,13 +24,16 @@ namespace BDArmory
 
 
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Max Pitch"),
-         UI_FloatRange(minValue = 0f, maxValue = 60f, stepIncrement = 1f, scene = UI_Scene.All)] public float maxPitch;
+         UI_FloatRange(minValue = 0f, maxValue = 60f, stepIncrement = 1f, scene = UI_Scene.All)]
+        public float maxPitch;
 
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Min Pitch"),
-         UI_FloatRange(minValue = 1f, maxValue = 0f, stepIncrement = 1f, scene = UI_Scene.All)] public float minPitch;
+         UI_FloatRange(minValue = 1f, maxValue = 0f, stepIncrement = 1f, scene = UI_Scene.All)]
+        public float minPitch;
 
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Yaw Range"),
-         UI_FloatRange(minValue = 1f, maxValue = 60f, stepIncrement = 1f, scene = UI_Scene.All)] public float yawRange;
+         UI_FloatRange(minValue = 1f, maxValue = 60f, stepIncrement = 1f, scene = UI_Scene.All)]
+        public float yawRange;
 
         [KSPField(isPersistant = true)] public float minPitchLimit = 400;
         [KSPField(isPersistant = true)] public float maxPitchLimit = 400;
@@ -161,7 +164,6 @@ namespace BDArmory
             }
         }
 
-
         public void AimToTarget(Vector3 targetPosition, bool pitch = true, bool yaw = true)
         {
             if (!yawTransform)
@@ -271,7 +273,6 @@ namespace BDArmory
                 return false;
             }
         }
-
 
         public bool TargetInRange(Vector3 targetPosition, float thresholdDegrees, float maxDistance)
         {

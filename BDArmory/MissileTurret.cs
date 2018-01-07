@@ -388,7 +388,7 @@ namespace BDArmory
             //    }
             //}
 
-            if (Physics.Raycast(ray, out hit, maxTargetingRange, 688129))
+            if (Physics.Raycast(ray, out hit, maxTargetingRange, 9076737))
             {
                 targetPosition = hit.point;
 

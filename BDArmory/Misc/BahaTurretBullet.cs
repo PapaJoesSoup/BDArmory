@@ -250,7 +250,7 @@ namespace BDArmory.Misc
                 //    }
                 //}
 
-                if (Physics.Raycast(ray, out hit, dist, 688129))
+                if (Physics.Raycast(ray, out hit, dist, 9076737))
 				{
 					bool penetrated = true;
 

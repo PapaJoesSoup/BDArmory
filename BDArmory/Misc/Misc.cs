@@ -199,7 +199,7 @@ namespace BDArmory.Misc
             Ray ray = new Ray(origin, target - origin);
             ray.origin += ray.direction*startDistance;
             RaycastHit rayHit;
-            if (Physics.Raycast(ray, out rayHit, dist, 688129))
+            if (Physics.Raycast(ray, out rayHit, dist, 9076737))
             {
                 if ((target - rayHit.point).sqrMagnitude < threshold*threshold)
                 {
@@ -222,7 +222,7 @@ namespace BDArmory.Misc
             ray.origin += ray.direction*startDistance;
             RaycastHit rayHit;
 
-            if (Physics.Raycast(ray, out rayHit, dist, 688129))
+            if (Physics.Raycast(ray, out rayHit, dist, 9076737))
             {
                 if ((target - rayHit.point).sqrMagnitude < threshold*threshold)
                 {

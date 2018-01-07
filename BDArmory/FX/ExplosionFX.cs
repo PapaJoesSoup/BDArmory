@@ -102,7 +102,7 @@ namespace BDArmory.FX
             List<Part> parstAdded = new List<Part>();
             List<DestructibleBuilding> bulidingAdded = new List<DestructibleBuilding>();
 
-            using (var hitCollidersEnu = Physics.OverlapSphere(Position, Range, 688129).AsEnumerable().GetEnumerator())
+            using (var hitCollidersEnu = Physics.OverlapSphere(Position, Range, 9076737).AsEnumerable().GetEnumerator())
             {
                 while (hitCollidersEnu.MoveNext())
                 {
@@ -191,7 +191,7 @@ namespace BDArmory.FX
         {
             Ray partRay = new Ray(Position, part.transform.position - Position);
 
-            var hits = Physics.RaycastAll(partRay, Range, 688129).AsEnumerable();
+            var hits = Physics.RaycastAll(partRay, Range, 9076737).AsEnumerable();
             using (var hitsEnu = hits.OrderBy(x => x.distance).GetEnumerator())
             {
                 while (hitsEnu.MoveNext())

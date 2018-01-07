@@ -255,6 +255,7 @@ namespace BDArmory
         public float bulletDragArea = 1.209675e-5f;
 
         private BulletInfo bulletInfo;
+
         [KSPField]
         public string bulletType = "def";
 
@@ -279,18 +280,20 @@ namespace BDArmory
 
         [KSPField]
         public string weaponType = "ballistic";
-        //ballistic(normal bullets), cannon(explosive bullets), or laser
+        //ballistic, cannon or laser
 
         [KSPField]
         public float laserDamage = 10000; //base damage/second of lasers
 
         //cannon shell specfications
+        //TODO: deprectated, moved to bullet config
         [KSPField]
         public float cannonShellRadius = 30; //max radius of explosion forces/damage
         [KSPField]
         public float cannonShellPower = 8; //explosion's impulse force
         [KSPField]
         public float cannonShellHeat = -1; //if non-negative, heat damage
+
 
         //projectile graphics
         [KSPField]
@@ -1292,7 +1295,7 @@ namespace BDArmory
                     //    }
                     //}
                     
-                    if (Physics.Raycast(ray, out hit, maxDistance, 688129))
+                    if (Physics.Raycast(ray, out hit, maxDistance, 9076737))
                     {
                         lr.useWorldSpace = true;
                         laserPoint = hit.point + physStepFix;
@@ -1391,7 +1394,7 @@ namespace BDArmory
                 Ray ray = new Ray(fireTransforms[i].position, fireTransforms[i].forward);
                 RaycastHit hit;
 
-                if (Physics.Raycast(ray, out hit, maxTargetingRange, 688129))
+                if (Physics.Raycast(ray, out hit, maxTargetingRange, 9076737))
                 {
                     KerbalEVA eva = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
                     Part p = eva ? eva.part : hit.collider.gameObject.GetComponentInParent<Part>();
@@ -1558,7 +1561,7 @@ namespace BDArmory
                 Ray ray = FlightCamera.fetch.mainCamera.ViewportPointToRay(mouseAim);
                 RaycastHit hit;
 
-                if (Physics.Raycast(ray, out hit, maxTargetingRange, 688129))
+                if (Physics.Raycast(ray, out hit, maxTargetingRange, 9076737))
                 {
                     targetPosition = hit.point;
 
@@ -1808,7 +1811,7 @@ namespace BDArmory
                 {
                     Ray ray = new Ray(fireTransform.position, fireTransform.forward);
                     RaycastHit rayHit;
-                    if (Physics.Raycast(ray, out rayHit, maxTargetingRange, 688129))
+                    if (Physics.Raycast(ray, out rayHit, maxTargetingRange, 9076737))
                     {
                         bulletPrediction = rayHit.point;
                     }
@@ -1844,7 +1847,7 @@ namespace BDArmory
                         pointPositions.Add(simCurrPos);
 
                         if (Physics.Raycast(simPrevPos, simCurrPos - simPrevPos, out hit,
-                            Vector3.Distance(simPrevPos, simCurrPos), 688129))
+                            Vector3.Distance(simPrevPos, simCurrPos), 9076737))
                         {
                             Vessel hitVessel = null;
                             try

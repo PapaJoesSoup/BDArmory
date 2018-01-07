@@ -36,6 +36,7 @@
     <Compile Include="BuildingDamage.cs" />
     <Compile Include="Dependencies.cs" />
     <Compile Include="Enum\DamageOperation.cs" />
+    <Compile Include="Extension\DamageFX.cs" />
     <Compile Include="Extension\PartExtensions.cs" />
     <Compile Include="Events\DamageEventArgs.cs" />
     <Compile Include="Extension\VesselExtensions.cs" />
@@ -52,6 +53,7 @@
     <Compile Include="Utils\BulletPhysics.cs" />
     <Compile Include="Utils\DebugUtils.cs" />
     <Compile Include="Utils\BDAMath.cs" />
+    <Compile Include="Utils\LayerMask.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">

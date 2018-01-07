@@ -152,6 +152,7 @@ namespace BDArmory.Core.Extension
                 Debug.Log("[BDArmory]: Ballistic Hitpoints Applied : " + Math.Round(damage_, 2));
             }
 
+            CheckDamageFX(p);
         }
 
         /// <summary>
@@ -166,6 +167,8 @@ namespace BDArmory.Core.Extension
             Dependencies.Get<DamageService>().AddDamageToPart_svc(p, damage);
             if (BDArmorySettings.DRAW_DEBUG_LABELS)
                 Debug.Log("[BDArmory]: Explosive Hitpoints Applied to " + p.name + ": " + Math.Round(damage, 2));
+
+            CheckDamageFX(p);
         }
 
         /// <summary>
@@ -251,6 +254,16 @@ namespace BDArmory.Core.Extension
             return armor_ / maxArmor_;
         }
 
+        public static float GetDamagePercentatge(this Part p)
+        {
+            if (p == null) return 0;
+
+            float damage_ = p.Damage();
+            float maxDamage_ = p.MaxDamage();
+
+            return damage_ / maxDamage_;
+        }
+
         public static void RefreshAssociatedWindows(this Part part)
         {
             //Thanks FlowerChild
@@ -314,12 +327,13 @@ namespace BDArmory.Core.Extension
 
         public static bool IgnoreDecal(this Part part)
         {
-            if(
+            if (
                 part.Modules.Contains("FSplanePropellerSpinner") ||
                 part.Modules.Contains("ModuleWheelBase") ||
                 part.Modules.Contains("KSPWheelBase") ||
-                part.gameObject.GetComponentUpwards<KerbalEVA>()
-               )
+                part.gameObject.GetComponentUpwards<KerbalEVA>()||
+                part.Modules.Contains("ModuleDCKShields")
+                )
             {
                 return true;
             }
@@ -393,6 +407,21 @@ namespace BDArmory.Core.Extension
             }
 
             return damage;
+        }
+
+        public static void CheckDamageFX(Part part)
+        {
+            if (part.GetComponent<ModuleEngines>() != null && part.GetDamagePercentatge() <= 0.35f)
+            {
+                part.gameObject.AddOrGetComponent<DamageFX>();
+                DamageFX.engineDamaged = true;
+            }
+
+            if (part.GetComponent<ModuleLiftingSurface>() != null && part.GetDamagePercentatge() <= 0.35f)
+            {
+                //part.gameObject.AddOrGetComponent<DamageFX>();
+            }
+
         }
     }
 }

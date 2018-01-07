@@ -1215,7 +1215,7 @@ namespace BDArmory.Parts
 
 			RaycastHit rayHit;
 			Ray ray = new Ray(cameraParentTransform.position + (50*cameraParentTransform.forward), cameraParentTransform.forward);
-			bool raycasted = Physics.Raycast(ray, out rayHit, maxRayDistance - 50, 688129);
+			bool raycasted = Physics.Raycast(ray, out rayHit, maxRayDistance - 50, 9076737);
 			if(raycasted)
 			{
 				if(FlightGlobals.getAltitudeAtPos(rayHit.point) < 0)
@@ -1293,7 +1293,7 @@ namespace BDArmory.Parts
 
 			RaycastHit rayHit;
 			Ray ray = new Ray(cameraParentTransform.position + (50*cameraParentTransform.forward), cameraParentTransform.forward);
-			if(Physics.Raycast(ray, out rayHit, maxRayDistance-50, 688129))
+			if(Physics.Raycast(ray, out rayHit, maxRayDistance-50, 9076737))
 			{
 				targetPointPosition = rayHit.point;
 
