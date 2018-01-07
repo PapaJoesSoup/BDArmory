@@ -50,9 +50,7 @@ namespace BDArmory
         public float tracerLength = 0;
         public float tracerDeltaFactor = 1.35f;
         public float tracerLuminance = 1;
-        public float initialSpeed;
 
-        public Vector3 prevPosition;
         public Vector3 currPosition;
 
         //explosive parameters
@@ -78,16 +76,13 @@ namespace BDArmory
         public Vector3 currentVelocity;
         public float bulletMass;
         public float caliber = 1;
-        public float bulletVelocity; //muzzle velocity
         public bool explosive = false;
         public float apBulletMod = 0;
         public float ballisticCoefficient;
-        public float flightTimeElapsed;
         bool collisionEnabled;
         public static Shader bulletShader;
         public static bool shaderInitialized;
         private float impactVelocity;
-        private float dragVelocity;
 
         public bool hasPenetrated = false;
         public bool hasDetonated = false;
@@ -102,7 +97,6 @@ namespace BDArmory
         {
 
             startPosition = transform.position;
-            initialSpeed = currentVelocity.magnitude; // this is the velocity used for drag estimations (only), use total velocity, not muzzle velocity
 
             collisionEnabled = false;
 
@@ -120,7 +114,6 @@ namespace BDArmory
                 currentColor = startColor;
             }
 
-            prevPosition = gameObject.transform.position;
 
             if (lightFlash == null || !gameObject.GetComponent<Light>())
             {
@@ -207,7 +200,6 @@ namespace BDArmory
             {
                 transform.position -= FloatingOrigin.OffsetNonKrakensbane;
                 startPosition -= FloatingOrigin.OffsetNonKrakensbane;
-                //prevPosition -= FloatingOrigin.OffsetNonKrakensbane; // looks like this variable is not used anywhere
             }
 
             float distanceFromStart = Vector3.Distance(transform.position, startPosition);
@@ -216,20 +208,8 @@ namespace BDArmory
                 return;
             }
 
-            //calculate flight time for drag purposes
-            flightTimeElapsed += Time.fixedDeltaTime;
-
-            switch (dragType)
-            {
-                case BulletDragTypes.None:
-                    break;
-                case BulletDragTypes.AnalyticEstimate:
-                    CalculateDragAnalyticEstimate();
-                    break;
-                case BulletDragTypes.NumericalIntegration:
-                    CalculateDragNumericalIntegration();
-                    break;
-            }
+            // apply drag
+            currentVelocity += CalculateDrag(dragType, transform.position, currentVelocity, ballisticCoefficient, TimeWarp.deltaTime);
 
             if (tracerLength == 0)
             {
@@ -363,7 +343,6 @@ namespace BDArmory
                                 //if (explosive && penetrationFactor < 3 || currentVelocity.magnitude <= 800f)
                                 if (explosive)
                                 {
-                                    prevPosition = currPosition;
                                     //move bullet            
                                     transform.position += (currentVelocity * Time.fixedDeltaTime) / 3;
 
@@ -447,8 +426,6 @@ namespace BDArmory
             //Bullet Translation 
             //////////////////////////////////////////////////
 
-            prevPosition = currPosition;
-            
 
             if (bulletDrop && FlightGlobals.RefFrameIsRotating)
             {
@@ -520,36 +497,60 @@ namespace BDArmory
                                         bulletDmgMult,impactVelocity, explosive);
         }
 
-        private void CalculateDragNumericalIntegration()
+        /// <summary>
+        /// Calculates the velocity change from drag on a bullet and returns it as a Vector.
+        /// </summary>
+        /// <param name="bulletDragType">Type of drag estimation calculation formula.</param>
+        /// <param name="currentPosition">Current local world position.</param>
+        /// <param name="currentVelocity">Current velocity relative to atmosphere.</param>
+        /// <param name="ballisticCoefficient">Ballistic coefficient of the bullet.</param>
+        /// <param name="timeDelta">Time over which to estimate the drag</param>
+        /// <returns>Vector3 indicating the change in velocity. To modify velocity, add it, not subtract.</returns>
+        public static Vector3 CalculateDrag(BulletDragTypes bulletDragType, Vector3 currentPosition, Vector3 currentVelocity, float ballisticCoefficient, float timeDelta)
+        {
+            switch (bulletDragType)
+            {
+                case BulletDragTypes.None:
+                    return Vector3.zero;
+                case BulletDragTypes.AnalyticEstimate:
+                    return CalculateDragAnalyticEstimate(currentPosition, currentVelocity, ballisticCoefficient, timeDelta);
+                case BulletDragTypes.NumericalIntegration:
+                    return CalculateDragNumericalIntegration(currentPosition, currentVelocity, ballisticCoefficient, timeDelta);
+            }
+            throw new ArgumentException($"Unknown bullet drag type: {bulletDragType.ToString()}");
+        }
+
+        public static Vector3 CalculateDragNumericalIntegration(Vector3 currentPosition, Vector3 currentVelocity, float ballisticCoefficient, float timeDelta)
         {
             Vector3 dragAcc = currentVelocity * currentVelocity.magnitude *
                               (float)
-                              FlightGlobals.getAtmDensity(FlightGlobals.getStaticPressure(transform.position),
-                                  FlightGlobals.getExternalTemperature(transform.position));
+                              FlightGlobals.getAtmDensity(FlightGlobals.getStaticPressure(currentPosition),
+                                  FlightGlobals.getExternalTemperature(currentPosition));
             dragAcc *= 0.5f;
             dragAcc /= ballisticCoefficient;
 
-            currentVelocity -= dragAcc * TimeWarp.deltaTime;
+            return -dragAcc * timeDelta;
         }
 
-        private void CalculateDragAnalyticEstimate()
+        public static Vector3 CalculateDragAnalyticEstimate(Vector3 currentPosition, Vector3 currentVelocity, float ballisticCoefficient, float timeDelta)
         {
-            float analyticDragVelAdjustment = (float)FlightGlobals.getAtmDensity(FlightGlobals.getStaticPressure(currPosition), FlightGlobals.getExternalTemperature(currPosition));
-            analyticDragVelAdjustment *= flightTimeElapsed * initialSpeed;
+            float speed = currentVelocity.magnitude;
+            float analyticDragVelAdjustment = (float)FlightGlobals.getAtmDensity(
+                FlightGlobals.getStaticPressure(currentPosition), 
+                FlightGlobals.getExternalTemperature(currentPosition));
+            analyticDragVelAdjustment *= timeDelta * speed;
             analyticDragVelAdjustment += 2 * ballisticCoefficient;
 
-            analyticDragVelAdjustment = 2 * ballisticCoefficient * initialSpeed / analyticDragVelAdjustment;
+			analyticDragVelAdjustment = 2 * ballisticCoefficient * speed / analyticDragVelAdjustment;
             //velocity as a function of time under the assumption of a projectile only acted upon by drag with a constant drag area
 
-            analyticDragVelAdjustment = analyticDragVelAdjustment - initialSpeed;
+            analyticDragVelAdjustment = analyticDragVelAdjustment - speed;
             //since the above was velocity as a function of time, but we need a difference in drag, subtract the initial velocity
             //the above number should be negative...
             //impactVelocity += analyticDragVelAdjustment; //so add it to the impact velocity
 
             // since this is getting called every update anyway, might as well update the actual velocity
-            currentVelocity += currentVelocity.normalized * (analyticDragVelAdjustment - dragVelocity);
-
-            dragVelocity = analyticDragVelAdjustment;
+            return currentVelocity.normalized * analyticDragVelAdjustment;
         }
 
         private float CalculateArmorPenetration(Part hitPart, float anglemultiplier, RaycastHit hit)
@@ -588,9 +589,6 @@ namespace BDArmory
 
                 //updating impact velocity
                 //impactVelocity = currentVelocity.magnitude;
-
-                flightTimeElapsed -= Time.fixedDeltaTime;
-                prevPosition = transform.position;
             }
             else
             {

@@ -47,13 +47,6 @@ namespace BDArmory
             PoweringUp,
             PoweringDown
         }
-
-        public enum BulletDragTypes
-        {
-            None,
-            AnalyticEstimate,
-            NumericalIntegration
-        }          
                
         public WeaponStates weaponState = WeaponStates.Disabled;
         
@@ -253,8 +246,8 @@ namespace BDArmory
         public float bulletVelocity = 1030; //velocity in meters/second
 
         [KSPField]
-        public string bulletDragTypeName = "NumericalIntegration";
-        public BulletDragTypes bulletDragType;
+        public string bulletDragTypeName = "AnalyticEstimate";
+        public PooledBullet.BulletDragTypes bulletDragType;
 
         //drag area of the bullet in m^2; equal to Cd * A with A being the frontal area of the bullet; as a first approximation, take Cd to be 0.3
         //bullet mass / bullet drag area.  Used in analytic estimate to speed up code
@@ -1060,7 +1053,6 @@ namespace BDArmory
                         firedBullet.transform.position = fireTransform.position;
 
                         pBullet.caliber = bulletInfo.caliber;
-                        pBullet.bulletVelocity = bulletInfo.bulletVelocity;
                         pBullet.bulletMass = bulletInfo.bulletMass;
                         pBullet.explosive = bulletInfo.explosive;
                         pBullet.apBulletMod = bulletInfo.apBulletMod;                  
@@ -1077,7 +1069,6 @@ namespace BDArmory
 
                         pBullet.ballisticCoefficient = bulletBallisticCoefficient;
 
-                        pBullet.flightTimeElapsed = 0;
                         pBullet.maxDistance = Mathf.Max(maxTargetingRange, maxEffectiveDistance); //limit distance to weapons maxeffective distance
 
                         timeFired = Time.time;
@@ -1161,18 +1152,8 @@ namespace BDArmory
                             pBullet.bulletType = PooledBullet.PooledBulletTypes.Standard;
                             pBullet.airDetonation = false;
                         }
-                        switch (bulletDragType)
-                        {
-                            case BulletDragTypes.None:
-                                pBullet.dragType = PooledBullet.BulletDragTypes.None;
-                                break;
-                            case BulletDragTypes.AnalyticEstimate:
-                                pBullet.dragType = PooledBullet.BulletDragTypes.AnalyticEstimate;
-                                break;
-                            case BulletDragTypes.NumericalIntegration:
-                                pBullet.dragType = PooledBullet.BulletDragTypes.NumericalIntegration;
-                                break;
-                        }
+
+                        pBullet.dragType = bulletDragType;
 
                         pBullet.bullet = BulletInfo.bullets[bulletType];
                         pBullet.gameObject.SetActive(true);
@@ -1606,27 +1587,64 @@ namespace BDArmory
             targetLeadDistance = targetDistance;
             if ((BDArmorySettings.AIM_ASSIST || aiControlled) && eWeaponType != WeaponTypes.Laser)
             {
-                float gAccel = (float)FlightGlobals.getGeeForceAtPosition(finalTarget).magnitude;
-                float time = targetDistance / (bulletVelocity);
+                float gAccel = ((float)FlightGlobals.getGeeForceAtPosition(finalTarget).magnitude
+                    + (float)FlightGlobals.getGeeForceAtPosition(fireTransforms[0].position).magnitude) / 2; // Average G-force
+                float time = targetDistance / bulletVelocity;
+
 
                 if (targetAcquired)
                 {
                     float time2 = VectorUtils.CalculateLeadTime(finalTarget - fireTransforms[0].position,
                         targetVelocity - vessel.Velocity(), bulletVelocity);
                     if (time2 > 0) time = time2;
-                    finalTarget += (targetVelocity - vessel.Velocity()) * time;
-                    
+
+                    Vector3 intermediateTarget = finalTarget;
+
+                    // If a ballistic weapon with drag, estimate a first order drag approximation
+                    // Always use AnalyticEstimate, because the current implementation of numerical integration calculates instant drag
+                    // so while using it over a period of FixedUpdate is fine, calculating it for the whole trajectory will produce garbage
+                    // (essentially, AnalyticEstimate is the estimation of NumericalIntegration over longer periods)
+                    Vector3 trueBulletVelocity = Vector3.zero; // for drag purposes
+                    if (bulletDragType != PooledBullet.BulletDragTypes.None)
+                    {
+                        trueBulletVelocity = part.rb.velocity + Krakensbane.GetFrameVelocityV3f() + fireTransforms[0].forward * bulletVelocity;
+                        intermediateTarget += 0.5f * time * PooledBullet.CalculateDragAnalyticEstimate(
+                                fireTransforms[0].position, trueBulletVelocity, bulletBallisticCoefficient, time);
+                    }
+
                     //target vessel relative velocity compensation
-                    Vector3 acceleration = targetAcceleration;
-                    finalTarget += (0.5f * acceleration * time * time); //target acceleration
+                    intermediateTarget += (targetVelocity - vessel.Velocity()) * time;
+                    //target acceleration compensation
+                    intermediateTarget += (0.5f * targetAcceleration * time * time);
+
+
+                    //reestimate lead time taking into account bullet drag and acceleration
+                    time2 = VectorUtils.CalculateLeadTime(intermediateTarget - fireTransforms[0].position, targetVelocity - vessel.Velocity(),
+                        bulletVelocity);
+                    if (time2 > 0) time = time2;
+
+                    //repeat as before
+                    finalTarget += (targetVelocity - vessel.Velocity()) * time;
+                    finalTarget += (0.5f * targetAcceleration * time * time);
+                    if (bulletDragType != PooledBullet.BulletDragTypes.None)
+                        finalTarget += 0.5f * time * PooledBullet.CalculateDragAnalyticEstimate(
+                                fireTransforms[0].position, trueBulletVelocity, bulletBallisticCoefficient, time);
                 }
                 else if (vessel.altitude < 6000)
                 {
+                    Vector3 rigidbodyVelocity = part.rb.velocity + Krakensbane.GetFrameVelocityV3f();
                     float time2 = VectorUtils.CalculateLeadTime(finalTarget - fireTransforms[0].position,
-                        -part.rb.velocity, bulletVelocity);
+                        -rigidbodyVelocity, bulletVelocity);
                     if (time2 > 0) time = time2;
-                    finalTarget += (-part.rb.velocity * (time + Time.fixedDeltaTime));
+                    finalTarget += (-rigidbodyVelocity * (time + Time.fixedDeltaTime));
                     //this vessel velocity compensation against stationary
+
+                    //one step of drag estimation
+                    if (bulletDragType != PooledBullet.BulletDragTypes.None)
+                        finalTarget += 0.5f * time * PooledBullet.CalculateDragAnalyticEstimate(
+                                fireTransforms[0].position,
+                                part.rb.velocity + Krakensbane.GetFrameVelocityV3f() + fireTransforms[0].forward * bulletVelocity,
+                                bulletBallisticCoefficient, time);
                 }
                 Vector3 up = (finalTarget - vessel.mainBody.transform.position).normalized;
                 if (bulletDrop && vessel.srfSpeed < 750)
@@ -1670,6 +1688,46 @@ namespace BDArmory
                 turret.AimToTarget(finalTarget);
                 turret.smoothRotation = origSmooth;
             }
+        }
+
+        private Vector3 estimateTargetOffset(Vector3 target, Vector3 relativeVelocity, Vector3 targetAcceleration, out float time)
+        {
+            time = Vector3.Distance(target, transform.position) / bulletVelocity;
+            float time2 = VectorUtils.CalculateLeadTime(target - fireTransforms[0].position,
+                relativeVelocity, bulletVelocity);
+            if (time2 > 0) time = time2;
+
+            Vector3 intermediateTarget = target;
+
+            // If a ballistic weapon with drag, estimate a first order drag approximation
+            // Always use AnalyticEstimate, because the current implementation of numerical integration calculates instant drag
+            // so while using it over a period of FixedUpdate is fine, calculating it for the whole trajectory will produce garbage
+            // (essentially, AnalyticEstimate is the estimation of NumericalIntegration over longer periods)
+            Vector3 trueBulletVelocity = Vector3.zero; // for drag purposes
+            if (bulletDragType != PooledBullet.BulletDragTypes.None)
+            {
+                trueBulletVelocity = part.rb.velocity + Krakensbane.GetFrameVelocityV3f() + fireTransforms[0].forward * bulletVelocity;
+                intermediateTarget += 0.5f * time * PooledBullet.CalculateDragAnalyticEstimate(
+                        fireTransforms[0].position, trueBulletVelocity, bulletBallisticCoefficient, time);
+            }
+
+            //target vessel relative velocity compensation
+            intermediateTarget += relativeVelocity * time;
+            //target acceleration compensation
+            intermediateTarget += (0.5f * targetAcceleration * time * time);
+
+            //reestimate lead time taking into account bullet drag and acceleration
+            time2 = VectorUtils.CalculateLeadTime(intermediateTarget - fireTransforms[0].position, relativeVelocity,
+                bulletVelocity);
+            if (time2 > 0) time = time2;
+
+            //repeat as before
+            Vector3 targetOffset = relativeVelocity * time;
+            targetOffset += (0.5f * targetAcceleration * time * time);
+            if (bulletDragType != PooledBullet.BulletDragTypes.None)
+                targetOffset += 0.5f * time * PooledBullet.CalculateDragAnalyticEstimate(
+                        fireTransforms[0].position, trueBulletVelocity, bulletBallisticCoefficient, time);
+            return targetOffset;
         }
 
         IEnumerator AimAndFireAtEndOfFrame()
@@ -1754,6 +1812,7 @@ namespace BDArmory
 
                     Vector3 simVelocity = part.rb.velocity + (bulletVelocity * fireTransform.forward);
                     Vector3 simCurrPos = fireTransform.position + (part.rb.velocity * Time.fixedDeltaTime);
+                    Vector3 referenceFrameSpeed = Krakensbane.GetFrameVelocityV3f();
                     Vector3 simPrevPos = simCurrPos;
                     Vector3 simStartPos = simCurrPos;
                     bool simulating = true;
@@ -1765,6 +1824,8 @@ namespace BDArmory
                     {
                         RaycastHit hit;
                         if (bulletDrop) simVelocity += FlightGlobals.getGeeForceAtPosition(simCurrPos) * simDeltaTime;
+                        simVelocity += PooledBullet.CalculateDrag(bulletDragType, simCurrPos, 
+                            simVelocity + referenceFrameSpeed, bulletBallisticCoefficient, simDeltaTime);
                         simCurrPos += simVelocity * simDeltaTime;
                         pointPositions.Add(simCurrPos);
 
@@ -2178,15 +2239,15 @@ namespace BDArmory
             switch (bulletDragTypeName)
             {
                 case "none":
-                    bulletDragType = BulletDragTypes.None;
+                    bulletDragType = PooledBullet.BulletDragTypes.None;
                     break;
 
                 case "numericalintegration":
-                    bulletDragType = BulletDragTypes.NumericalIntegration;
+                    bulletDragType = PooledBullet.BulletDragTypes.NumericalIntegration;
                     break;
 
                 case "analyticestimate":
-                    bulletDragType = BulletDragTypes.AnalyticEstimate;
+                    bulletDragType = PooledBullet.BulletDragTypes.AnalyticEstimate;
                     break;
             }
         }
