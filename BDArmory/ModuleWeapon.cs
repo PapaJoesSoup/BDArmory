@@ -706,7 +706,9 @@ namespace BDArmory
                                   !aiControlled);
                     if ((userFiring || autoFire || agHoldFiring) &&
                         (yawRange == 0 || (maxPitch - minPitch) == 0 ||
-                         turret.TargetInRange(finalAimTarget, 10, float.MaxValue)))
+                         turret.TargetInRange(finalAimTarget, 10, float.MaxValue) 
+                         || (FiringSolutionVector != null 
+                         && Vector3.Angle((Vector3)FiringSolutionVector, fireTransforms[0].forward) < 10)))
                     {
                         if (useRippleFire && (pointingAtSelf || isOverheated))
                         {
@@ -1594,7 +1596,6 @@ namespace BDArmory
 
             if ((BDArmorySettings.AIM_ASSIST || aiControlled) && eWeaponType != WeaponTypes.Laser)
             {
-                Debug.Log("calculating firing solution");
                 if (targetAcquired)
                 {
                     FiringSolutionVector = calculateFiringSolution(targetPosition, targetVelocity - vessel.Velocity(), targetAcceleration);
@@ -1603,7 +1604,6 @@ namespace BDArmory
                 {
                     FiringSolutionVector = calculateFiringSolution(targetPosition, -(part.rb.velocity + Krakensbane.GetFrameVelocityV3f()), Vector3.zero);
                 }
-                Debug.Log("firing solution calculated");
 
                 //airdetonation
                 if (airDetonation)
@@ -1647,10 +1647,17 @@ namespace BDArmory
             const float simDeltaTime = 0.155f;
             float hitSqrThreshold = Mathf.Pow((fireTransforms[0].position - target).magnitude / 8192, 2); // no reason for the 8192, just a number
             float sqrMaxRange = maxEffectiveDistance * maxEffectiveDistance;
-
-            Vector3 solutionVector = (target - fireTransforms[0].position).normalized;
-            Vector3 simStartPos = fireTransforms[0].position + (part.rb.velocity * Time.fixedDeltaTime);
+            Vector3 upDir = VectorUtils.GetUpDirection(fireTransforms[0].position);
             Vector3 referenceFrameSpeed = Krakensbane.GetFrameVelocityV3f();
+
+            Vector3 solutionVector = target - fireTransforms[0].position;
+            // as flat trajectories converge very quickly anyway, and trajectories approaching max range are slower
+            // seed the simulation with an elevated trajectory
+            if (solutionVector.sqrMagnitude > 8 * bulletVelocity * bulletVelocity)
+                solutionVector = Vector3.RotateTowards(upDir, solutionVector, 1, 0).normalized; // heuristic (=guess) for max range
+            else solutionVector = solutionVector.normalized;
+
+            Vector3 simStartPos = fireTransforms[0].position + (part.rb.velocity * Time.fixedDeltaTime);
             Vector3 projectedTarget = target;
             float prevSqrClosestPass = float.PositiveInfinity;
 
@@ -1685,29 +1692,34 @@ namespace BDArmory
                 Vector3 closestPass = simPrevPos + velDir * Vector3.Dot((projectedTarget - simPrevPos), velDir);
                 float closestPassSqrDistance = (projectedTarget - closestPass).sqrMagnitude;
 
-                Debug.Log($"step {simulationSteps}, passDistance: {closestPassSqrDistance}, solution vector {solutionVector}");
+                //Debug.Log($"step {simulationSteps}, passDistance: {closestPassSqrDistance}, solution vector {solutionVector}");
 
                 // if close enough return
-                if (closestPassSqrDistance < hitSqrThreshold)
+                // note the dot product runs into floating point limits at longer ranges, but that's probably sufficient accuracy
+                double cosAngle = Vector3d.Dot((projectedTarget - simStartPos).normalized, (closestPass - simStartPos).normalized);
+                if (closestPassSqrDistance < hitSqrThreshold || cosAngle >= 1)
                 {
                     // looks like we need these things someplace
                     targetLeadDistance = Vector3.Distance(projectedTarget, fireTransforms[0].position);
                     fixedLeadOffset = target - projectedTarget; //for aiming fixed guns to moving target	
                     finalAimTarget = projectedTarget;
+                    //Debug.Log($"leadDist: {targetLeadDistance}, leadOffset: {fixedLeadOffset}, aimTarget: {finalAimTarget}");
                     // though I'd say use FiringSolution instead, if feasible
 
                     return solutionVector;
                 }
 
                 // if getting further away, target is beyond max ballistic trajectory, raising it more won't help
-                if (closestPassSqrDistance > prevSqrClosestPass)
+                if (closestPassSqrDistance >= prevSqrClosestPass)
                     return null;
                 prevSqrClosestPass = closestPassSqrDistance;
 
                 //else adjust solutionVector
-                Debug.Log($"adjusting solution: {projectedTarget - closestPass}, {(projectedTarget - simStartPos).normalized}, {(closestPass - simStartPos).normalized}, {Vector3.Dot((projectedTarget - simStartPos).normalized, (closestPass - simStartPos).normalized)}");
-                solutionVector = Vector3.RotateTowards(solutionVector, projectedTarget - closestPass,
-                    Mathf.Acos(Vector3.Dot((projectedTarget - simStartPos).normalized, (closestPass - simStartPos).normalized)), 0);
+                //Debug.Log($"adjusting solution: {projectedTarget - closestPass}, {(projectedTarget - simStartPos).normalized}, {(closestPass - simStartPos).normalized}, {Vector3.Dot((projectedTarget - simStartPos).normalized, (closestPass - simStartPos).normalized)}");
+                //Debug.Log($"adjusting solution: {Math.Acos(cosAngle) * Mathf.Rad2Deg} degrees");
+                solutionVector = Vector3.RotateTowards(solutionVector, 
+                    upDir * Vector3.Dot(upDir, projectedTarget - closestPass), 
+                    (float)Math.Acos(cosAngle), 0);
             }
         }
 
