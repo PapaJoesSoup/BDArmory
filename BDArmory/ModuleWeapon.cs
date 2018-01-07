@@ -1598,10 +1598,13 @@ namespace BDArmory
             {
                 if (targetAcquired)
                 {
+                    Debug.Log("firing solution for acquired target");
                     FiringSolutionVector = calculateFiringSolution(targetPosition, targetVelocity - vessel.Velocity(), targetAcceleration);
+                    Debug.Log(FiringSolutionVector);
                 }
                 else if (vessel.altitude < 6000)
                 {
+                    Debug.Log("firing solution for ground");
                     FiringSolutionVector = calculateFiringSolution(targetPosition, -(part.rb.velocity + Krakensbane.GetFrameVelocityV3f()), Vector3.zero);
                 }
 
@@ -1648,7 +1651,8 @@ namespace BDArmory
             // because I suspect the simulation overestimates drag a bit, probably due to larger time step
             // though equally likely it's ModuleTurret.AimToTarget() not doing what I think it should
             const float dragCorrectiveFactor = 0.98f;
-            float hitSqrThreshold = Mathf.Pow((fireTransforms[0].position - target).magnitude / 8192, 2); // no reason for the 8192, just a number
+            float hitSqrThreshold = (fireTransforms[0].position - target).sqrMagnitude / 33554432; // no reason for the number
+            //Debug.Log($"hitSqrThreshold {hitSqrThreshold}");
             float sqrMaxRange = maxEffectiveDistance * maxEffectiveDistance;
             Vector3 upDir = VectorUtils.GetUpDirection(fireTransforms[0].position);
             Vector3 referenceFrameSpeed = Krakensbane.GetFrameVelocityV3f();
@@ -1662,7 +1666,7 @@ namespace BDArmory
 
             Vector3 simStartPos = fireTransforms[0].position + (part.rb.velocity * Time.fixedDeltaTime);
             Vector3 projectedTarget = target;
-            float prevSqrClosestPass = float.PositiveInfinity;
+            float prevClosestPass = float.PositiveInfinity;
 
             while (true)
             {
@@ -1684,44 +1688,62 @@ namespace BDArmory
                 }
 
                 // predict target movement
-                projectedTarget = target + (relativeVelocity + targetAcceleration * simulationSteps * simDeltaTime / 2) * simulationSteps * simDeltaTime;
+                float partialTime = Vector3.Dot((projectedTarget - simPrevPos), simVelocity.normalized) / simVelocity.magnitude;
+                projectedTarget = target + (relativeVelocity + targetAcceleration * (simulationSteps * simDeltaTime + partialTime) / 2) 
+                    * (simulationSteps * simDeltaTime + partialTime);
+                //Debug.Log(projectedTarget);
 
                 // if target is out of range abort
                 if ((projectedTarget - simStartPos).sqrMagnitude > sqrMaxRange)
                     return null;
 
                 // calculate closest pass
-                Vector3 velDir = simVelocity.normalized;
-                Vector3 closestPass = simPrevPos + velDir * Vector3.Dot((projectedTarget - simPrevPos), velDir);
+                Vector3 closestPass = simPrevPos + simVelocity * partialTime;
                 float closestPassSqrDistance = (projectedTarget - closestPass).sqrMagnitude;
 
                 //Debug.Log($"step {simulationSteps}, passDistance: {closestPassSqrDistance}, solution vector {solutionVector}");
 
                 // if close enough return
                 if (closestPassSqrDistance < hitSqrThreshold)
-                {
-                    // looks like we need these things someplace
-                    targetLeadDistance = Vector3.Distance(projectedTarget, fireTransforms[0].position);
-                    fixedLeadOffset = target - projectedTarget; //for aiming fixed guns to moving target	
-                    finalAimTarget = projectedTarget;
-                    //Debug.Log($"leadDist: {targetLeadDistance}, leadOffset: {fixedLeadOffset}, aimTarget: {finalAimTarget}");
-                    // though I'd say use FiringSolution instead, if feasible
-
-                    return solutionVector;
-                }
+                    break;
 
                 // if getting further away, target is beyond max ballistic trajectory, raising it more won't help
-                if (closestPassSqrDistance >= prevSqrClosestPass)
-                    return null;
-                prevSqrClosestPass = closestPassSqrDistance;
+                if (closestPassSqrDistance >= prevClosestPass)
+                {
+                    //Debug.Log($"getting further away: {closestPassSqrDistance}, {prevClosestPass}");
+                    if (closestPassSqrDistance < 256) break;
+                    else return null;
+                }
+                prevClosestPass = closestPassSqrDistance;
 
                 // else adjust solutionVector
                 // we actually need the double precision for the angle, that one is completely intentional
-                //Debug.Log($"adjusting solution: {Vector3d.Angle(projectedTarget - simStartPos, closestPass - simStartPos) * Mathf.Deg2Rad} degrees");
+                Vector3 dirToTarget = projectedTarget - simStartPos;
+                Vector3 dirToClosestPass = closestPass - simStartPos;
+                Vector3 sideDirection = Vector3.Cross(dirToTarget, upDir);
+                // yaw
+                //Debug.Log($"adjusting yaw: {(float)Vector3d.Angle(Vector3.ProjectOnPlane(dirToTarget, upDir),Vector3.ProjectOnPlane(dirToClosestPass, upDir))* Mathf.Deg2Rad * Mathf.Sign(Vector3.Dot(dirToClosestPass, sideDirection))} degrees");
+                solutionVector = Quaternion.AngleAxis((float)Vector3d.Angle(
+                        Vector3.ProjectOnPlane(dirToTarget, upDir),
+                        Vector3.ProjectOnPlane(dirToClosestPass, upDir)) 
+                        * Mathf.Sign(Vector3.Dot(dirToClosestPass, sideDirection)),
+                        upDir) * solutionVector;
+                // pitch
+                //Debug.Log($"adjusting pitch {(float)Vector3d.Angle(projectedTarget - simStartPos, Vector3.ProjectOnPlane(closestPass - simStartPos, Vector3.Cross(projectedTarget - simStartPos, upDir)))}");
                 solutionVector = Vector3.RotateTowards(solutionVector, 
                     upDir * Vector3.Dot(upDir, projectedTarget - closestPass), 
-                    (float)Vector3d.Angle(projectedTarget - simStartPos, closestPass - simStartPos) * Mathf.Deg2Rad, 0);
+                    (float)Vector3d.Angle(dirToTarget, 
+                    Vector3.ProjectOnPlane(dirToClosestPass, sideDirection)) * Mathf.Deg2Rad, 0);
             }
+
+            // looks like we need these things someplace
+            targetLeadDistance = Vector3.Distance(projectedTarget, fireTransforms[0].position);
+            fixedLeadOffset = target - projectedTarget; //for aiming fixed guns to moving target	
+            finalAimTarget = projectedTarget;
+            //Debug.Log($"leadDist: {targetLeadDistance}, leadOffset: {fixedLeadOffset}, aimTarget: {finalAimTarget}");
+            // though I'd say use FiringSolution instead, if feasible
+
+            return solutionVector;
         }
 
         IEnumerator AimAndFireAtEndOfFrame()
