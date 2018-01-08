@@ -97,7 +97,6 @@ namespace BDArmory
         {
 
             startPosition = transform.position;
-
             collisionEnabled = false;
 
             if (!wasInitiated)

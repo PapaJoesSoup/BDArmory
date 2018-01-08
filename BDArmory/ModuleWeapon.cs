@@ -1645,6 +1645,14 @@ namespace BDArmory
             }
         }
 
+        /// <summary>
+        /// Iteratively simulate bullet trajectory and adjust firing direction for the calculated error.
+        /// </summary>
+        /// <param name="target">Local coordinates of the target position</param>
+        /// <param name="relativeVelocity">Relative velocity of the target to the gun</param>
+        /// <param name="targetAcceleration">Acceleration of the target</param>
+        /// <returns>If a firing solution is found, a (normalized) Vector3 indicating the direction in which to fire.
+        /// If no firing solution is found - null.</returns>
         private Vector3? calculateFiringSolution(Vector3 target, Vector3 relativeVelocity, Vector3 targetAcceleration)
         {
             const float simDeltaTime = 0.155f;
