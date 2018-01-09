@@ -824,7 +824,8 @@ namespace BDArmory
                     Transform fireTransform = fireTransforms[0];
                     Vector3 targetRelPos = (finalAimTarget) - fireTransform.position;
                     Vector3 aimDirection = fireTransform.forward;
-                    float targetCosAngle = Vector3.Dot(aimDirection, targetRelPos.normalized);
+                    float targetCosAngle = Vector3.Dot(aimDirection, 
+                        FiringSolutionVector == null ? targetRelPos.normalized : (Vector3)FiringSolutionVector);
 
                     Vector3 targetDiffVec = finalAimTarget - lastFinalAimTarget;
                     Vector3 projectedTargetPos = targetDiffVec;
@@ -1592,8 +1593,6 @@ namespace BDArmory
 
 
             //aim assist
-            targetLeadDistance = Vector3.Distance(targetPosition, transform.position);
-            fixedLeadOffset = Vector3.zero;
             finalAimTarget = targetPosition;
             FiringSolutionVector = null;
 
@@ -1621,6 +1620,9 @@ namespace BDArmory
                     }
                 }
             }
+
+            fixedLeadOffset = finalAimTarget - targetPosition; //for aiming fixed guns to moving target	
+            targetLeadDistance = Vector3.Distance(finalAimTarget, fireTransforms[0].position);
 
             if (airDetonation)
             {
@@ -1697,13 +1699,17 @@ namespace BDArmory
 
                 // predict target movement
                 float partialTime = Vector3.Dot((projectedTarget - simPrevPos), simVelocity.normalized) / simVelocity.magnitude;
+                //Debug.Log($"partTime: {partialTime}, projectedTime: {simulationSteps * simDeltaTime + partialTime}");
                 projectedTarget = target + (relativeVelocity + targetAcceleration * (simulationSteps * simDeltaTime + partialTime) / 2) 
                     * (simulationSteps * simDeltaTime + partialTime);
                 //Debug.Log(projectedTarget);
 
                 // if target is out of range abort
                 if ((projectedTarget - simStartPos).sqrMagnitude > sqrMaxRange)
+                {
+                    finalAimTarget = projectedTarget;
                     return null;
+                }
 
                 // calculate closest pass
                 Vector3 closestPass = simPrevPos + simVelocity * partialTime;
@@ -1720,7 +1726,11 @@ namespace BDArmory
                 {
                     //Debug.Log($"getting further away: {closestPassSqrDistance}, {prevClosestPass}");
                     if (closestPassSqrDistance < 256) break;
-                    else return null;
+                    else
+                    {
+                        finalAimTarget = projectedTarget;
+                        return null;
+                    }
                 }
                 prevClosestPass = closestPassSqrDistance;
 
@@ -1744,13 +1754,7 @@ namespace BDArmory
                     Vector3.ProjectOnPlane(dirToClosestPass, sideDirection)) * Mathf.Deg2Rad, 0);
             }
 
-            // looks like we need these things someplace
-            targetLeadDistance = Vector3.Distance(projectedTarget, fireTransforms[0].position);
-            fixedLeadOffset = target - projectedTarget; //for aiming fixed guns to moving target	
-            finalAimTarget = projectedTarget;
-            //Debug.Log($"leadDist: {targetLeadDistance}, leadOffset: {fixedLeadOffset}, aimTarget: {finalAimTarget}");
-            // though I'd say use FiringSolution instead, if feasible
-
+            finalAimTarget = fireTransforms[0].position + solutionVector * Vector3.Distance(projectedTarget, fireTransforms[0].position);
             return solutionVector;
         }
 

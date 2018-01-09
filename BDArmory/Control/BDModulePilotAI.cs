@@ -791,7 +791,11 @@ namespace BDArmory.Control
                         debugString.Append(Environment.NewLine);
                         float magnifier = Mathf.Clamp(targetAngVel, 1f, 2f);
 						magnifier += ((magnifier-1f) * Mathf.Sin(Time.time *0.75f));
-						target -= magnifier * leadOffset;
+
+						if (weapon.FiringSolutionVector == null)
+							target -= magnifier * leadOffset;
+						else
+							target = (Vector3)weapon.FiringSolutionVector * distanceToTarget - (magnifier - 1) * leadOffset;
 
 						angleToTarget = Vector3.Angle(vesselTransform.up, target - vesselTransform.position);
 						if(distanceToTarget < weaponManager.gunRange && angleToTarget < 20)
