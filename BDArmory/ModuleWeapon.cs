@@ -820,7 +820,7 @@ namespace BDArmory
 
 
                 //autofiring with AI
-                if (targetAcquired && aiControlled)
+                if (targetAcquired && aiControlled && (eWeaponType == WeaponTypes.Laser || FiringSolutionVector != null))
                 {
                     Transform fireTransform = fireTransforms[0];
                     Vector3 targetRelPos = (finalAimTarget) - fireTransform.position;

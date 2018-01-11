@@ -177,6 +177,13 @@ namespace BDArmory
                 yawTransform.parent.InverseTransformPoint(targetPosition - (yawTargetOffset*pitchTransform.right));
             Vector3 targetYaw = Vector3.ProjectOnPlane(localTargetYaw, Vector3.up);
             float targetYawAngle = VectorUtils.SignedAngle(Vector3.forward, targetYaw, Vector3.right);
+
+            // difference between current yaw and desired yaw, unclamped
+            float yawOffset = yawTransform.localEulerAngles.y; //get current rotation
+            yawOffset = targetYawAngle - ((yawOffset > 180) ? yawOffset - 360: yawOffset); //take difference
+            float currentYawSign = Mathf.Sign(targetYawAngle); //save sign of difference
+            yawOffset = Mathf.Abs(yawOffset); //remove sign from difference
+            // clamp yaw angle
             targetYawAngle = Mathf.Clamp(targetYawAngle, -yawRange/2, yawRange/2);
 
             Quaternion currYawRot = yawTransform.localRotation;
@@ -187,13 +194,18 @@ namespace BDArmory
             localTargetPitch.z = Mathf.Abs(localTargetPitch.z); //prevents from aiming wonky if target is behind
             Vector3 targetPitch = Vector3.ProjectOnPlane(localTargetPitch, Vector3.right);
             float targetPitchAngle = VectorUtils.SignedAngle(Vector3.forward, targetPitch, Vector3.up);
+
+            // difference between current pitch and desired pitch, unclamped
+            float pitchOffset = pitchTransform.localEulerAngles.x; //get current rotation
+            pitchOffset = Mathf.Abs(targetPitchAngle - ((pitchOffset > 180) ? 360 - pitchOffset : -pitchOffset)); //take absolute difference
+            // clamp pitch angle
             targetPitchAngle = Mathf.Clamp(targetPitchAngle, minPitch, maxPitch);
 
-            float yawOffset = Vector3.Angle(yawTransform.parent.InverseTransformDirection(yawTransform.forward),
-                targetYaw);
-            float currentYawSign = Mathf.Sign(Vector3.Dot(yawTransform.localRotation*Vector3.forward, Vector3.right));
-            float pitchOffset = Vector3.Angle(pitchTransform.parent.InverseTransformDirection(pitchTransform.forward),
-                targetPitch);
+            Debug.Log($"yaw sign test: {Mathf.Sign(Vector3.Dot(yawTransform.localRotation * Vector3.forward, Vector3.right))}, {currentYawSign}");
+            Debug.Log($"yaw offset test: {Vector3.Angle(yawTransform.parent.InverseTransformDirection(yawTransform.forward), targetYaw)}, {yawOffset}");
+            Debug.Log($"yaw offset vars: {yawTransform.localEulerAngles}, {targetYawAngle}, {targetYawAngle * Mathf.Rad2Deg}");
+            Debug.Log($"pitch offset test: {Vector3.Angle(pitchTransform.parent.InverseTransformDirection(pitchTransform.forward), targetPitch)}, {pitchOffset}");
+            Debug.Log($"pitch offset vars: {pitchTransform.localEulerAngles}, {targetPitchAngle}, {targetPitchAngle * Mathf.Rad2Deg}");
 
             float linPitchMult = yawOffset > 0 ? Mathf.Clamp01((pitchOffset/yawOffset)*(yawSpeedDPS/pitchSpeedDPS)) : 1;
             float linYawMult = pitchOffset > 0 ? Mathf.Clamp01((yawOffset/pitchOffset)*(pitchSpeedDPS/yawSpeedDPS)) : 1;
