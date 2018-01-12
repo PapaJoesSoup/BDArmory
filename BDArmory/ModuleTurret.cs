@@ -186,18 +186,13 @@ namespace BDArmory
                 yawComponent, 
                 Vector3.Cross(yawNormal, referenceTransform.forward));
             float yawOffset = Mathf.Abs(yawError);
-            float targetYawAngle = Mathf.Clamp((currentYaw + yawError + 180) % 360 - 180, -yawRange / 2, yawRange / 2); // clamped target yaw
+            float targetYawAngle = Mathf.Clamp((currentYaw + yawError + 180f) % 360f - 180f, -yawRange / 2, yawRange / 2); // clamped target yaw
 
-            //float currentPitch = Mathf.Abs(90 - pitchTransform.localEulerAngles.x) - 90; // from current rotation transform
-            //if (currentPitch > 90) currentPitch = 180 - currentPitch; // for 270-360 quadrant
-            float currentPitch = -((pitchTransform.localEulerAngles.x + 180) % 360 - 180); // from current rotation transform
-            float realPitch = 90 - (float)Vector3d.Angle(yawNormal, referenceTransform.forward);
-            float targetPitchAngle = 90 - (float)Vector3d.Angle(yawNormal, pitchComponent) + realPitch - currentPitch; // simple angle from yaw normal
+            float currentPitch = -((pitchTransform.localEulerAngles.x + 180f) % 360f - 180f); // from current rotation transform
+            float realPitch = 90f - (float)Vector3d.Angle(yawNormal, referenceTransform.forward);
+            float targetPitchAngle = 90f - (float)Vector3d.Angle(yawNormal, pitchComponent) + (realPitch - currentPitch); // simple angle from yaw normal
             float pitchOffset = Mathf.Abs(targetPitchAngle - currentPitch);
             targetPitchAngle = Mathf.Clamp(targetPitchAngle, minPitch, maxPitch); // clamp pitch
-
-            Debug.Log($"cy: {currentYaw}, ty: {targetYawAngle}, ye: {yawError}, cp: {currentPitch}, tp: {targetPitchAngle}");
-            Debug.Log($"yo {yawOffset}, po {pitchOffset}");
 
             float linPitchMult = yawOffset > 0 ? Mathf.Clamp01((pitchOffset/yawOffset)*(yawSpeedDPS/pitchSpeedDPS)) : 1;
             float linYawMult = pitchOffset > 0 ? Mathf.Clamp01((yawOffset/pitchOffset)*(pitchSpeedDPS/yawSpeedDPS)) : 1;

@@ -15,6 +15,7 @@ namespace BDArmory.Misc
 
 		/// <summary>
 		/// Same as SignedAngle, just using double precision for the cosine calculation.
+        /// For very small angles the floating point precision starts to matter, as the cosine is close to 1, not to 0.
 		/// </summary>
 		public static float SignedAngleDP(Vector3 fromDirection, Vector3 toDirection, Vector3 referenceRight)
 		{
