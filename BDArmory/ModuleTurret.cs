@@ -42,9 +42,6 @@ namespace BDArmory
         [KSPField] public bool smoothRotation = false;
         [KSPField] public float smoothMultiplier = 10;
 
-        float pitchTargetOffset;
-        float yawTargetOffset;
-
         //sfx
         [KSPField] public string audioPath;
         [KSPField] public float maxAudioPitch = 0.5f;
@@ -166,6 +163,11 @@ namespace BDArmory
 
         public void AimToTarget(Vector3 targetPosition, bool pitch = true, bool yaw = true)
         {
+            AimInDirection(targetPosition - referenceTransform.position, pitch, yaw);
+        }
+
+        public void AimInDirection(Vector3 targetDirection, bool pitch = true, bool yaw = true)
+        {
             if (!yawTransform)
             {
                 return;
@@ -173,39 +175,29 @@ namespace BDArmory
 
             float deltaTime = Time.fixedDeltaTime;
 
-            Vector3 localTargetYaw =
-                yawTransform.parent.InverseTransformPoint(targetPosition - (yawTargetOffset*pitchTransform.right));
-            Vector3 targetYaw = Vector3.ProjectOnPlane(localTargetYaw, Vector3.up);
-            float targetYawAngle = VectorUtils.SignedAngle(Vector3.forward, targetYaw, Vector3.right);
+            Vector3 yawNormal = yawTransform.up;
+            Vector3 yawComponent = Vector3.ProjectOnPlane(targetDirection, yawNormal);
+            Vector3 pitchNormal = Vector3.Cross(yawComponent, yawNormal);
+            Vector3 pitchComponent = Vector3.ProjectOnPlane(targetDirection, pitchNormal);
 
-            // difference between current yaw and desired yaw, unclamped
-            float yawOffset = yawTransform.localEulerAngles.y; //get current rotation
-            yawOffset = targetYawAngle - ((yawOffset > 180) ? yawOffset - 360: yawOffset); //take difference
-            float currentYawSign = Mathf.Sign(targetYawAngle); //save sign of difference
-            yawOffset = Mathf.Abs(yawOffset); //remove sign from difference
-            // clamp yaw angle
-            targetYawAngle = Mathf.Clamp(targetYawAngle, -yawRange/2, yawRange/2);
+            float currentYaw = yawTransform.localEulerAngles.y;
+            float yawError = VectorUtils.SignedAngleDP(
+                Vector3.ProjectOnPlane(referenceTransform.forward, yawNormal), 
+                yawComponent, 
+                Vector3.Cross(yawNormal, referenceTransform.forward));
+            float yawOffset = Mathf.Abs(yawError);
+            float targetYawAngle = Mathf.Clamp((currentYaw + yawError + 180) % 360 - 180, -yawRange / 2, yawRange / 2); // clamped target yaw
 
-            Quaternion currYawRot = yawTransform.localRotation;
-            yawTransform.localRotation = Quaternion.Euler(0, targetYawAngle, 0);
-            Vector3 localTargetPitch =
-                pitchTransform.parent.InverseTransformPoint(targetPosition - (pitchTargetOffset*pitchTransform.up));
-            yawTransform.localRotation = currYawRot;
-            localTargetPitch.z = Mathf.Abs(localTargetPitch.z); //prevents from aiming wonky if target is behind
-            Vector3 targetPitch = Vector3.ProjectOnPlane(localTargetPitch, Vector3.right);
-            float targetPitchAngle = VectorUtils.SignedAngle(Vector3.forward, targetPitch, Vector3.up);
+            //float currentPitch = Mathf.Abs(90 - pitchTransform.localEulerAngles.x) - 90; // from current rotation transform
+            //if (currentPitch > 90) currentPitch = 180 - currentPitch; // for 270-360 quadrant
+            float currentPitch = -((pitchTransform.localEulerAngles.x + 180) % 360 - 180); // from current rotation transform
+            float realPitch = 90 - (float)Vector3d.Angle(yawNormal, referenceTransform.forward);
+            float targetPitchAngle = 90 - (float)Vector3d.Angle(yawNormal, pitchComponent) + realPitch - currentPitch; // simple angle from yaw normal
+            float pitchOffset = Mathf.Abs(targetPitchAngle - currentPitch);
+            targetPitchAngle = Mathf.Clamp(targetPitchAngle, minPitch, maxPitch); // clamp pitch
 
-            // difference between current pitch and desired pitch, unclamped
-            float pitchOffset = pitchTransform.localEulerAngles.x; //get current rotation
-            pitchOffset = Mathf.Abs(targetPitchAngle - ((pitchOffset > 180) ? 360 - pitchOffset : -pitchOffset)); //take absolute difference
-            // clamp pitch angle
-            targetPitchAngle = Mathf.Clamp(targetPitchAngle, minPitch, maxPitch);
-
-            Debug.Log($"yaw sign test: {Mathf.Sign(Vector3.Dot(yawTransform.localRotation * Vector3.forward, Vector3.right))}, {currentYawSign}");
-            Debug.Log($"yaw offset test: {Vector3.Angle(yawTransform.parent.InverseTransformDirection(yawTransform.forward), targetYaw)}, {yawOffset}");
-            Debug.Log($"yaw offset vars: {yawTransform.localEulerAngles}, {targetYawAngle}, {targetYawAngle * Mathf.Rad2Deg}");
-            Debug.Log($"pitch offset test: {Vector3.Angle(pitchTransform.parent.InverseTransformDirection(pitchTransform.forward), targetPitch)}, {pitchOffset}");
-            Debug.Log($"pitch offset vars: {pitchTransform.localEulerAngles}, {targetPitchAngle}, {targetPitchAngle * Mathf.Rad2Deg}");
+            Debug.Log($"cy: {currentYaw}, ty: {targetYawAngle}, ye: {yawError}, cp: {currentPitch}, tp: {targetPitchAngle}");
+            Debug.Log($"yo {yawOffset}, po {pitchOffset}");
 
             float linPitchMult = yawOffset > 0 ? Mathf.Clamp01((pitchOffset/yawOffset)*(yawSpeedDPS/pitchSpeedDPS)) : 1;
             float linYawMult = pitchOffset > 0 ? Mathf.Clamp01((yawOffset/pitchOffset)*(pitchSpeedDPS/yawSpeedDPS)) : 1;
@@ -226,7 +218,7 @@ namespace BDArmory
             yawSpeed *= linYawMult;
             pitchSpeed *= linPitchMult;
 
-            if (yawRange < 360 && Mathf.Abs(targetYawAngle) > 90 && currentYawSign != Mathf.Sign(targetYawAngle))
+            if (yawRange < 360 && Mathf.Abs(targetYawAngle) > 90 && Mathf.Sign(currentYaw) != Mathf.Sign(targetYawAngle))
             {
                 targetYawAngle = 5*Mathf.Sign(targetYawAngle);
             }
@@ -301,8 +293,6 @@ namespace BDArmory
         public void SetReferenceTransform(Transform t)
         {
             referenceTransform = t;
-            pitchTargetOffset = pitchTransform.InverseTransformPoint(referenceTransform.position).y;
-            yawTargetOffset = yawTransform.InverseTransformPoint(referenceTransform.position).x;
         }
 
         void SetupTweakables()

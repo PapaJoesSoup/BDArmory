@@ -1639,11 +1639,10 @@ namespace BDArmory
                 {
                     turret.smoothRotation = false;
                 }
-                turret.AimToTarget(
-                    FiringSolutionVector != null 
-                    ? part.transform.position + (Vector3)FiringSolutionVector * 1099511627776 // 2^40
-                    // because I cannot figure out why the AimToTarget method aims sideways without the large number multiplier
-                    : finalAimTarget);
+                if (FiringSolutionVector != null)
+                    turret.AimInDirection((Vector3)FiringSolutionVector);
+                else
+                    turret.AimToTarget(finalAimTarget);
                 turret.smoothRotation = origSmooth;
             }
         }
