@@ -1659,10 +1659,8 @@ namespace BDArmory
         {
             const float simDeltaTime = 0.155f;
             // because I suspect the simulation overestimates drag a bit, probably due to larger time step
-            // though equally likely it's ModuleTurret.AimToTarget() not doing what I think it should
             const float dragCorrectiveFactor = 0.98f;
             float hitSqrThreshold = (fireTransforms[0].position - target).sqrMagnitude / 33554432; // no reason for the number
-            //Debug.Log($"hitSqrThreshold {hitSqrThreshold}");
             float sqrMaxRange = maxEffectiveDistance * maxEffectiveDistance;
             Vector3 upDir = VectorUtils.GetUpDirection(fireTransforms[0].position);
             Vector3 referenceFrameSpeed = Krakensbane.GetFrameVelocityV3f();
@@ -1685,7 +1683,6 @@ namespace BDArmory
             float distanceToTargetSqr = (simStartPos - projectedTarget).sqrMagnitude;
             if (distanceToTargetSqr > sqrMaxRange) distanceToTargetSqr = sqrMaxRange;
             float prevClosestPass = float.PositiveInfinity;
-            //int iterationCount = 0;
 
             while (true)
             {
@@ -1694,11 +1691,10 @@ namespace BDArmory
                 Vector3 simVelocity = part.rb.velocity + (bulletVelocity * solutionVector);
                 distanceToTargetSqr = (simStartPos - projectedTarget).sqrMagnitude;
                 int simulationSteps = -1;
-                //++iterationCount;
 
                 if (bulletDrop) // not doing the if every simulation step
                     while ((simStartPos - simCurrPos).sqrMagnitude <= distanceToTargetSqr)
-                    {
+                    { 
                         simVelocity += FlightGlobals.getGeeForceAtPosition(simCurrPos) * simDeltaTime;
                         simVelocity += PooledBullet.CalculateDrag(bulletDragType, simCurrPos,
                             simVelocity + referenceFrameSpeed, bulletBallisticCoefficient, simDeltaTime) * dragCorrectiveFactor;
@@ -1716,10 +1712,8 @@ namespace BDArmory
 
                 // predict target movement
                 float partialTime = Vector3.Dot((projectedTarget - simCurrPos), simVelocity.normalized) / simVelocity.magnitude;
-                //Debug.Log($"partTime: {partialTime}, projectedTime: {simulationSteps * simDeltaTime + partialTime}");
                 projectedTarget = target + (relativeVelocity + targetAcceleration * (simulationSteps * simDeltaTime + partialTime) / 2) 
                     * (simulationSteps * simDeltaTime + partialTime);
-                //Debug.Log(projectedTarget);
 
                 // if target is out of range abort
                 if ((projectedTarget - simStartPos).sqrMagnitude > sqrMaxRange)
@@ -1733,8 +1727,6 @@ namespace BDArmory
                 Vector3 orthogonalPass = simCurrPos + simVelocity * partialTime;
                 float orthogonalPassSqrDistance = (projectedTarget - orthogonalPass).sqrMagnitude;
 
-                //Debug.Log($"step {simulationSteps}, passDistance: {orthogonalPassSqrDistance}, solution vector {solutionVector}");
-
                 // if close enough return
                 if (orthogonalPassSqrDistance < hitSqrThreshold)
                     break;
@@ -1742,7 +1734,6 @@ namespace BDArmory
                 // if getting further away, target is beyond max ballistic trajectory, raising it more won't help
                 if (orthogonalPassSqrDistance >= prevClosestPass)
                 {
-                    //Debug.Log($"getting further away: {orthogonalPassSqrDistance}, {prevClosestPass}");
                     if (orthogonalPassSqrDistance < 256) break;
                     else
                     {
@@ -1754,30 +1745,25 @@ namespace BDArmory
                 prevClosestPass = orthogonalPassSqrDistance;
 
                 // else adjust solutionVector
-                // we actually need the double precision for the angle, that one is completely intentional
+                // we actually need the double precision for the angles, that one is completely intentional
                 Vector3 dirToTarget = projectedTarget - simStartPos;
                 Vector3 dirToClosestPass = orthogonalPass - simStartPos;
                 Vector3 sideDirection = Vector3.Cross(dirToTarget, upDir);
                 // yaw
-                //Debug.Log($"adjusting yaw: {(float)Vector3d.Angle(Vector3.ProjectOnPlane(dirToTarget, upDir), Vector3.ProjectOnPlane(dirToClosestPass, upDir)) * Mathf.Deg2Rad * Mathf.Sign(Vector3.Dot(dirToClosestPass, sideDirection))} degrees");
                 solutionVector = Quaternion.AngleAxis((float)Vector3d.Angle(
                         Vector3.ProjectOnPlane(dirToTarget, upDir),
                         Vector3.ProjectOnPlane(dirToClosestPass, upDir)) 
                         * Mathf.Sign(Vector3.Dot(dirToClosestPass, sideDirection)),
                         upDir) * solutionVector;
                 // pitch
-                //Debug.Log($"adjusting pitch {(float)Vector3d.Angle(dirToTarget, Vector3.ProjectOnPlane(orthogonalPass - simStartPos, sideDirection))}");
-                solutionVector = Vector3.RotateTowards(solutionVector, 
-                    upDir * Vector3.Dot(upDir, projectedTarget - orthogonalPass),
+                float upDot = Vector3.Dot(upDir, projectedTarget - orthogonalPass);
+                solutionVector = Vector3.RotateTowards(solutionVector,
+                    upDot < 0 ? -upDir : Vector3.RotateTowards(upDir, solutionVector, 45 * Mathf.Deg2Rad, 0),
                     (float)Vector3d.Angle(dirToTarget, Vector3.ProjectOnPlane(dirToClosestPass, sideDirection)) * Mathf.Deg2Rad,
-                    //Mathf.Atan2(Vector3.ProjectOnPlane(projectedTarget - orthogonalPass, sideDirection).magnitude, dirToTarget.magnitude), 
                     0);
-                //Debug.Log($"alt suggestion parameters: {dirToTarget.magnitude}, {Vector3.ProjectOnPlane(projectedTarget - orthogonalPass, sideDirection).magnitude}");
-                //Debug.Log($"alt pitch suggestion: {Mathf.Atan2(Vector3.ProjectOnPlane(projectedTarget - orthogonalPass, sideDirection).magnitude, dirToTarget.magnitude) * Mathf.Rad2Deg}");
             }
 
             finalAimTarget = fireTransforms[0].position + solutionVector * Vector3.Distance(projectedTarget, fireTransforms[0].position);
-            //Debug.Log($"iteration count: {iterationCount}, final solution vector: {solutionVector}, finalAimTarget: {finalAimTarget}");
             firingSolutionVectorPreviousIteration = solutionVector;
             return solutionVector;
         }
