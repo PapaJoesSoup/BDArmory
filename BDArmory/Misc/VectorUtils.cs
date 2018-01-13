@@ -13,6 +13,17 @@ namespace BDArmory.Misc
 			return finalAngle;
 		}
 
+		/// <summary>
+		/// Same as SignedAngle, just using double precision for the cosine calculation.
+        /// For very small angles the floating point precision starts to matter, as the cosine is close to 1, not to 0.
+		/// </summary>
+		public static float SignedAngleDP(Vector3 fromDirection, Vector3 toDirection, Vector3 referenceRight)
+		{
+			float angle = (float)Vector3d.Angle(fromDirection, toDirection);
+			float sign = Mathf.Sign(Vector3.Dot(toDirection, referenceRight));
+			float finalAngle = sign * angle;
+			return finalAngle;
+		}
 
 
 		//from howlingmoonsoftware.com

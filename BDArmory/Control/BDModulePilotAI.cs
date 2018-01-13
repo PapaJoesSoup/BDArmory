@@ -377,6 +377,15 @@ namespace BDArmory.Control
 				}
 			}
 		}
+
+		void FixedUpdate()
+		{
+			//floating origin and velocity offloading corrections
+			if (lastTargetPosition != null && (!FloatingOrigin.Offset.IsZero() || !Krakensbane.GetFrameVelocity().IsZero()))
+			{
+				lastTargetPosition -= FloatingOrigin.OffsetNonKrakensbane;
+			}
+		}
 		
 		void AutoPilot(FlightCtrlState s)
 		{
@@ -782,7 +791,11 @@ namespace BDArmory.Control
                         debugString.Append(Environment.NewLine);
                         float magnifier = Mathf.Clamp(targetAngVel, 1f, 2f);
 						magnifier += ((magnifier-1f) * Mathf.Sin(Time.time *0.75f));
-						target -= magnifier * leadOffset;
+
+						if (weapon.FiringSolutionVector == null)
+							target -= magnifier * leadOffset;
+						else
+							target = (Vector3)weapon.FiringSolutionVector * distanceToTarget - (magnifier - 1) * leadOffset;
 
 						angleToTarget = Vector3.Angle(vesselTransform.up, target - vesselTransform.position);
 						if(distanceToTarget < weaponManager.gunRange && angleToTarget < 20)
@@ -948,10 +961,7 @@ namespace BDArmory.Control
 			targetPosition = vessel.transform.position + (currTargetDir * 100);
 
 
-			if(BDArmorySettings.DRAW_DEBUG_LINES)
-			{
-				flyingToPosition = targetPosition;
-			}
+			flyingToPosition = targetPosition;
 
 			//test poststall
 			float AoA = Vector3.Angle(vessel.ReferenceTransform.up, vessel.Velocity());
