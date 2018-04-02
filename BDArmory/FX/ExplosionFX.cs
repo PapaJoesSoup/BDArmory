@@ -396,6 +396,7 @@ namespace BDArmory.FX
             eFx.Caliber = caliber;
             eFx.ExplosivePart = explosivePart;
             eFx.Direction = direction;
+            eFx.transform.localRotation = rotation;
 
             if (tntMassEquivalent <= 5)
             {
