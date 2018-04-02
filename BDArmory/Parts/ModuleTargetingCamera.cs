@@ -321,13 +321,6 @@ namespace BDArmory.Parts
 					Debug.Log("[BDArmory]: saved gtp: " + bodyRelativeGTP);
 					DelayedEnable();
 				}
-
-                List<MissileFire>.Enumerator wm = vessel.FindPartModulesImplementing<MissileFire>().GetEnumerator();
-                while (wm.MoveNext())
-                {
-                    wm.Current.targetingPods.Add(this);
-				}
-                wm.Dispose();
 			}
 		}
 

@@ -95,6 +95,9 @@ namespace BDArmory
             get { return turret ? turret.minPitch : 0; }
         }
 
+        Vector3 targetPosition;
+        public Vector3? FiringSolutionVector => targetPosition.IsZero() ? (Vector3?)null : (targetPosition - rockets[0].parent.transform.position).normalized;
+
         double lastRocketsLeft;
 
         //weapon interface
@@ -388,9 +391,13 @@ namespace BDArmory
 
             currentTgtRange = maxTargetingRange;
 
-            if (deployed && readyToFire && turret)
+            if (deployed && readyToFire && (turret || weaponManager?.AI?.pilotEnabled == true))
             {
                 Aim();
+            }
+            else
+            {
+                targetPosition = Vector3.zero;
             }
         }
 
@@ -437,7 +444,7 @@ namespace BDArmory
         void Aim()
         {
             mouseAiming = false;
-            if (weaponManager && (weaponManager.slavingTurrets || weaponManager.guardMode))
+            if (weaponManager && (weaponManager.slavingTurrets || weaponManager.guardMode || weaponManager.AI?.pilotEnabled == true))
             {
                 SlavedAim();
             }
@@ -452,7 +459,6 @@ namespace BDArmory
 
         void SlavedAim()
         {
-            Vector3 targetPosition;
             Vector3 targetVel;
             Vector3 targetAccel;
             if (weaponManager.slavingTurrets)

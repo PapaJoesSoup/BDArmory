@@ -72,7 +72,7 @@ namespace BDArmory
         public float maxAirDetonationRange = 3500f;
         float randomWidthScale = 1;
         LineRenderer bulletTrail;
-        public float maxDistance;
+        public float timeToLiveUntil;
         Light lightFlash;
         bool wasInitiated;
         public Vector3 currentVelocity;
@@ -98,6 +98,7 @@ namespace BDArmory
         public Rigidbody rb;
         #endregion
 
+        private Vector3[] linePositions = new Vector3[2];
         void OnEnable()
         {
 
@@ -140,11 +141,12 @@ namespace BDArmory
 
             if (!wasInitiated)
             {
-                bulletTrail.SetVertexCount(2);
+                bulletTrail.positionCount = linePositions.Length;
             }
+            linePositions[0] = transform.position;
+            linePositions[1] = transform.position;
+            bulletTrail.SetPositions(linePositions);
 
-            bulletTrail.SetPosition(0, transform.position);
-            bulletTrail.SetPosition(1, transform.position);
 
             if (!shaderInitialized)
             {
@@ -235,14 +237,13 @@ namespace BDArmory
 
             if (tracerLength == 0)
             {
-                bulletTrail.SetPosition(0,
-                    transform.position +
-                    (currentVelocity * tracerDeltaFactor * 0.45f * Time.fixedDeltaTime));
+                // visual tracer velocity is relative to the observer
+                linePositions[0] = transform.position +
+                                   ((currentVelocity - FlightGlobals.ActiveVessel.Velocity()) * tracerDeltaFactor * 0.45f * Time.fixedDeltaTime);
             }
             else
             {
-                bulletTrail.SetPosition(0,
-                    transform.position + (currentVelocity.normalized * tracerLength));
+                linePositions[0] = transform.position + ((currentVelocity - FlightGlobals.ActiveVessel.Velocity()).normalized * tracerLength);
             }
 
             if (fadeColor)
@@ -250,12 +251,12 @@ namespace BDArmory
                 FadeColor();
                 bulletTrail.material.SetColor("_TintColor", currentColor * tracerLuminance);
             }
-
-            bulletTrail.SetPosition(1, transform.position);
-
+            linePositions[1] = transform.position;
+         
+            bulletTrail.SetPositions(linePositions);
             currPosition = gameObject.transform.position;
 
-            if (distanceFromStart > maxDistance)//kill bullet if it goes past the max allowed distance
+            if (Time.time > timeToLiveUntil) //kill bullet when TTL ends
             {
                 KillBullet();
                 return;
@@ -454,7 +455,7 @@ namespace BDArmory
             prevPosition = currPosition;
             
 
-            if (bulletDrop && FlightGlobals.RefFrameIsRotating)
+            if (bulletDrop)
             {
                 // Gravity???
                 var gravity_ = FlightGlobals.getGeeForceAtPosition(transform.position);

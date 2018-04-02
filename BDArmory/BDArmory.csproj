@@ -40,7 +40,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <LangVersion>6</LangVersion>
+    <LangVersion>default</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
     <OutputPath>bin\Release\</OutputPath>
@@ -75,6 +75,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Control\AIUtils.cs" />
+    <Compile Include="Control\BDGenericAIBase.cs" />
+    <Compile Include="Control\BDModuleSurfaceAI.cs" />
+    <Compile Include="Control\IBDAIControl.cs" />
     <Compile Include="Bullets\AmmoSwitch.cs" />
     <Compile Include="FX\DecalEmitterScript.cs" />
     <Compile Include="FX\DecalGaplessParticleEmitter.cs" />
@@ -161,6 +165,8 @@
     <Compile Include="Parts\BDRotaryRail.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Control\BDACompetitionMode.cs" />
+    <Compile Include="UI\IBDWMModule.cs" />
+    <Compile Include="UI\KrakensbaneDebug.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BDArmory.Core\BDArmory.Core.csproj">
@@ -191,6 +197,7 @@ set /p ZA_DIR=&lt;"$(ProjectDir)LocalDev\7za_dir.txt"
 set /p DIST_DIR=&lt;"$(ProjectDir)LocalDev\dist_dir.txt"
 
 @echo Copying assemblies to Distribution $(Targetname) files...
+if not exist "$(ProjectDir)Distribution\GameData\%25ModName%25\Plugins\" mkdir "$(ProjectDir)Distribution\GameData\%25ModName%25\Plugins\"
 copy /Y "$(TargetDir)"BDArmory*.dll "$(ProjectDir)Distribution\GameData\%25ModName%25\Plugins\"
 
 if $(ConfigurationName) == Debug (

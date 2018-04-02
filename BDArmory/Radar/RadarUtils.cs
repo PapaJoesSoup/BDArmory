@@ -1,4 +1,5 @@
 using BDArmory.Core.Extension;
+using BDArmory.Control;
 using BDArmory.CounterMeasure;
 using BDArmory.Misc;
 using BDArmory.Parts;
@@ -313,6 +314,7 @@ namespace BDArmory.Radar
             radarCam.targetTexture = rcsRendering;
             RenderTexture.active = rcsRendering;
             Shader.SetGlobalVector("_LIGHTDIR", -cameraDirection);
+            Shader.SetGlobalColor("_RCSCOLOR", Color.white);
             radarCam.RenderWithShader(BDAShaderLoader.RCSShader, string.Empty);
             rcsTexture.ReadPixels(new Rect(0, 0, radarResolution, radarResolution), 0, 0);
             rcsTexture.Apply();
@@ -889,6 +891,9 @@ namespace BDArmory.Radar
 
 						BDATargetManager.ReportVessel(loadedvessels.Current, myWpnManager);
 
+						vesselDistance = Mathf.Sqrt(vesselDistance);
+						Vector3 predictedRelativeDirection = loadedvessels.Current.transform.position - myWpnManager.vessel.PredictPosition(vesselDistance / (950 + Vector3.Dot(myWpnManager.vessel.Velocity(), vesselDirection.normalized)));
+
 						TargetInfo tInfo;
 						if((tInfo = loadedvessels.Current.gameObject.GetComponent<TargetInfo>()))
 						{
@@ -937,8 +942,9 @@ namespace BDArmory.Radar
                                 {
 									if(!weapon.Current.recentlyFiring) continue;
 									if(Vector3.Dot(weapon.Current.fireTransforms[0].forward, vesselDirection) > 0) continue;
-                                    vesselDistance = Mathf.Sqrt(vesselDistance);
-                                    if (Vector3.Angle(weapon.Current.fireTransforms[0].forward, -vesselDirection) < 6500 / vesselDistance && (!results.firingAtMe || (weapon.Current.vessel.ReferenceTransform.position - position).sqrMagnitude < (results.threatPosition - position).sqrMagnitude))
+
+									if ((Vector3.Angle(weapon.Current.fireTransforms[0].forward, -predictedRelativeDirection) < 6500 / vesselDistance)
+										&& (!results.firingAtMe || (weapon.Current.vessel.ReferenceTransform.position - position).sqrMagnitude < (results.threatPosition - position).sqrMagnitude))
 									{
 										results.firingAtMe = true;
 										results.threatPosition = weapon.Current.vessel.transform.position;

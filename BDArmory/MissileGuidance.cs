@@ -32,7 +32,7 @@ namespace BDArmory
                 (distanceToTarget - ((float) missileVessel.srfSpeed * descentRatio)) * 0.22f, 0,
                 (float) missileVessel.altitude);
             
-            Debug.Log("AGM altitudeClamp =" + altitudeClamp);
+            //Debug.Log("AGM altitudeClamp =" + altitudeClamp);
 
             Vector3 finalTarget = targetPosition + (altitudeClamp * upDirection.normalized);
 

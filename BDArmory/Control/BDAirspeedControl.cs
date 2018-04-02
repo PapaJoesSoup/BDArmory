@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 namespace BDArmory.Control
@@ -57,7 +59,8 @@ namespace BDArmory.Control
         {
             if (targetSpeed == 0)
             {
-                vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
+                if (useBrakes)
+                    vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
                 s.mainThrottle = 0;
                 return;
             }
@@ -95,13 +98,16 @@ namespace BDArmory.Control
             s.mainThrottle = Mathf.Clamp01(requestThrottle);
 
             //use brakes if overspeeding too much
-            if (requestThrottle < -0.5f)
+            if (useBrakes)
             {
-                vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
-            }
-            else
-            {
-                vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, false);
+                if (requestThrottle < -0.5f)
+                {
+                    vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
+                }
+                else
+                {
+                    vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, false);
+                }
             }
         }
 
@@ -157,7 +163,7 @@ namespace BDArmory.Control
             while (mmes.MoveNext())
             {
                 if (mmes.Current == null) continue;
-                if (allowAfterburner && (accel < requestAccel*0.2f || targetSpeed > 300))
+                if (allowAfterburner && accel < requestAccel * 0.2f)
                 {
                     if (mmes.Current.runningPrimary)
                     {
@@ -202,6 +208,52 @@ namespace BDArmory.Control
         public float GetPossibleAccel()
         {
             return possibleAccel;
+        }
+    }
+
+    public class BDLandSpeedControl : MonoBehaviour
+    {
+        public float targetSpeed;
+        public Vessel vessel;
+        public bool preventNegativeZeroPoint = false;
+
+        private float lastThrottle;
+        public float zeroPoint { get; private set; }
+
+        private const float gain = 0.5f;
+        private const float zeroMult = 0.02f;
+
+        public void Activate()
+        {
+            vessel.OnFlyByWire -= SpeedControl;
+            vessel.OnFlyByWire += SpeedControl;
+            zeroPoint = 0;
+            lastThrottle = 0;
+        }
+
+        public void Deactivate()
+        {
+            vessel.OnFlyByWire -= SpeedControl;
+        }
+
+        void SpeedControl(FlightCtrlState s)
+        {
+            if (!vessel.LandedOrSplashed)
+                s.wheelThrottle = 0;
+            else if (targetSpeed == 0)
+            {
+                vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
+                s.wheelThrottle = 0;
+            }
+            else
+            {
+                float throttle = zeroPoint + (targetSpeed - (float)vessel.srfSpeed) * gain;
+                lastThrottle = Mathf.Clamp(throttle, -1, 1);
+                zeroPoint = (zeroPoint + lastThrottle * zeroMult) * (1 - zeroMult) ;
+                if (preventNegativeZeroPoint && zeroPoint < 0) zeroPoint = 0;
+                s.wheelThrottle = lastThrottle;
+                vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, throttle < -5f);
+            }
         }
     }
 }

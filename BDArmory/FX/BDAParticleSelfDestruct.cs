@@ -17,7 +17,7 @@ namespace BDArmory.FX
 
         void Start()
         {
-            if (pEmitter.pe.particleCount == 0)
+            if (pEmitter.ps.particleCount == 0)
             {
                 Destroy(gameObject);
             }

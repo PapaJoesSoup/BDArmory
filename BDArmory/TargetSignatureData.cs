@@ -36,8 +36,8 @@ namespace BDArmory
         
 		public TargetSignatureData(Vessel v, float _signalStrength)
 		{
-			orbital = false;
-			orbit = null;
+			orbital = v.InOrbit();
+			orbit = v.orbit;
 
             timeAcquired = Time.time;
             vessel = v;

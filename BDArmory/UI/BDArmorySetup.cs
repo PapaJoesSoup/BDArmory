@@ -1115,6 +1115,23 @@ namespace BDArmory.UI
                     }
                     jammer.Dispose();
 
+                    //Other modules
+                    using (var module = ActiveWeaponManager.wmModules.GetEnumerator())
+                        while (module.MoveNext())
+                        {
+                            if (module.Current == null) continue;
+
+                            numberOfModules++;
+                            GUIStyle moduleStyle = module.Current.Enabled ? centerLabelBlue : centerLabel;
+                            string label = module.Current.Name;
+                            if (GUI.Button(new Rect(leftIndent, +(moduleLines * entryHeight), contentWidth, entryHeight),
+                                label, moduleStyle))
+                            {
+                                module.Current.Toggle();
+                            }
+                            moduleLines++;
+                        }
+
                     //GPS coordinator
                     GUIStyle gpsModuleStyle = showGPSWindow ? centerLabelBlue : centerLabel;
                     numberOfModules++;

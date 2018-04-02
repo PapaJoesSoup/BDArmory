@@ -227,13 +227,13 @@ namespace BDArmory
                     wma.Current.ToggleGuardMode();
 
                 //AI toggle
-                if (wma.Current.pilotAI)
+                if (wma.Current.AI != null)
                 {
-                    GUIStyle aiStyle = wma.Current.pilotAI.pilotEnabled ? HighLogic.Skin.box : HighLogic.Skin.button;
+                    GUIStyle aiStyle = wma.Current.AI.pilotEnabled ? HighLogic.Skin.box : HighLogic.Skin.button;
                     Rect aiButtonRect = new Rect(_margin + vesselButtonWidth + _buttonHeight, lineY, _buttonHeight,
                         _buttonHeight);
                     if (GUI.Button(aiButtonRect, "P", aiStyle))
-                        wma.Current.pilotAI.TogglePilot();
+                        wma.Current.AI.TogglePilot();
                 }
 
                 //team toggle
@@ -278,13 +278,13 @@ namespace BDArmory
                     wmb.Current.ToggleGuardMode();
 
                 //AI toggle
-                if (wmb.Current.pilotAI)
+                if (wmb.Current.AI != null)
                 {
-                    GUIStyle aiStyle = wmb.Current.pilotAI.pilotEnabled ? HighLogic.Skin.box : HighLogic.Skin.button;
+                    GUIStyle aiStyle = wmb.Current.AI.pilotEnabled ? HighLogic.Skin.box : HighLogic.Skin.button;
                     Rect aiButtonRect = new Rect(_margin + vesselButtonWidth + _buttonHeight, lineY, _buttonHeight,
                         _buttonHeight);
                     if (GUI.Button(aiButtonRect, "P", aiStyle))
-                        wmb.Current.pilotAI.TogglePilot();
+                        wmb.Current.AI.TogglePilot();
                 }
 
                 //team toggle

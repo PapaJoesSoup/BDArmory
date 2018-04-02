@@ -443,6 +443,7 @@ namespace BDArmory.Radar
             weaponManager.slavedPosition = lockedTarget.predictedPosition;
             weaponManager.slavedVelocity = lockedTarget.velocity;
             weaponManager.slavedAcceleration = lockedTarget.acceleration;
+            weaponManager.slavedTarget = lockedTarget;
         }
 
         void Update()
