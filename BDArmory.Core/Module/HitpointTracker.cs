@@ -8,8 +8,11 @@ namespace BDArmory.Core.Module
         #region KSP Fields
 
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Hitpoints"),
-        UI_ProgressBar(affectSymCounterparts = UI_Scene.None,controlEnabled = false,scene = UI_Scene.All,maxValue = 100000,minValue = 0,requireFullControl = false)]
+        UI_ProgressBar(affectSymCounterparts = UI_Scene.None, controlEnabled = false, scene = UI_Scene.All, maxValue = 100000, minValue = 0, requireFullControl = false)]
         public float Hitpoints;
+
+        [KSPField]
+        bool hasPrefabRun = false;
 
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Armor Thickness"),
         UI_FloatRange(minValue = 1f, maxValue = 500f, stepIncrement = 5f, scene = UI_Scene.All)]
@@ -38,48 +41,44 @@ namespace BDArmory.Core.Module
         private readonly float hitpointMultiplier = BDArmorySettings.HITPOINT_MULTIPLIER;
 
         private float previousHitpoints;
-        private Part _prefabPart;
-        private bool _setupRun = false;
         private bool _firstSetup = true;
+        private bool _updateHitpoints = false;
+        private bool _forceUpdateHitpointsUI = false;
+        private const int HpRounding = 100;
 
-        protected virtual void Setup()
-        {
-            if (_setupRun)
-            {
-                return;
-            }
-            _prefabPart = part.partInfo.partPrefab;
-            _setupRun = true;
-        }
 
         public override void OnLoad(ConfigNode node)
         {
             base.OnLoad(node);
 
+            if (!HighLogic.LoadedSceneIsEditor && !HighLogic.LoadedSceneIsFlight) return;
+
             if (part.partInfo == null)
             {
                 // Loading of the prefab from the part config
-                _prefabPart = part;
-                SetupPrefab();
+                _updateHitpoints = true;
 
             }
             else
             {
                 // Loading of the part from a saved craft                
                 if (HighLogic.LoadedSceneIsEditor)
-                    Setup();
+                {
+                    _updateHitpoints = true;    
+                }
                 else
                     enabled = false;
             }
-        }        
 
-        protected virtual void SetupPrefab()
+        }
+
+        public void SetupPrefab()
         {
             if (part != null)
             {
                 var maxHitPoints_ = CalculateTotalHitpoints();
 
-                if (previousHitpoints == maxHitPoints_) return;
+                if (!_forceUpdateHitpointsUI &&  previousHitpoints == maxHitPoints_) return;
 
                 //Add Hitpoints
                 UI_ProgressBar damageFieldFlight = (UI_ProgressBar)Fields["Hitpoints"].uiControlFlight;
@@ -100,17 +99,17 @@ namespace BDArmory.Core.Module
                 UI_FloatRange armorFieldEditor = (UI_FloatRange)Fields["Armor"].uiControlEditor;
                 armorFieldEditor.maxValue = 500f;
                 armorFieldEditor.minValue = 10f;
-
                 part.RefreshAssociatedWindows();
 
-                if (!ArmorSet) overrideArmorSetFromConfig();           
-                
-                previousHitpoints = Hitpoints;
+                if (!ArmorSet) overrideArmorSetFromConfig();
+
+                previousHitpoints = maxHitPoints_;
+                hasPrefabRun = true;
             }
             else
             {
 
-                    Debug.Log("[BDArmory]: HitpointTracker::OnStart part  is null");
+                Debug.Log("[BDArmory]: HitpointTracker::OnStart part is null");
             }
         }
 
@@ -118,7 +117,7 @@ namespace BDArmory.Core.Module
         {
             isEnabled = true;
 
-            if (part != null) SetupPrefab();
+            if (part != null) _updateHitpoints = true;
 
             if (HighLogic.LoadedSceneIsFlight)
             {
@@ -126,59 +125,70 @@ namespace BDArmory.Core.Module
                 //Once started the max value of the field should be the initial one
                 armorField.maxValue = Armor;
                 part.RefreshAssociatedWindows();
-            }         
-        }
-
-        private void ShipModified(ShipConstruct data)
-        {
-            SetupPrefab();
-        }
-
-        void OnGUI()
-        {
-            if (HighLogic.LoadedSceneIsEditor && _firstSetup)
-            {
-                //SetupPrefab();
             }
+            GameEvents.onEditorShipModified.Add(ShipModified);
         }
 
+
+
+        private void OnDestroy()
+        {
+            GameEvents.onEditorShipModified.Remove(ShipModified);   
+        }
+
+        public void ShipModified(ShipConstruct data)
+        {
+            _updateHitpoints = true;
+        }
         public override void OnUpdate()
-        {            
-            if (!HighLogic.LoadedSceneIsFlight || !FlightGlobals.ready || Hitpoints == 0f)
-            {
-                return;
-            }
+        {
 
-            if (part != null && _firstSetup)
+            RefreshHitPoints();
+        }
+
+        public void Update()
+        {
+
+            RefreshHitPoints();
+        }
+
+        private void RefreshHitPoints()
+        {
+
+            if (_updateHitpoints)
             {
-                _firstSetup = false;
                 SetupPrefab();
-             }        
-        }        
+                _updateHitpoints = false;
+                _forceUpdateHitpointsUI = false;
+            }
+        }
 
         #region Hitpoints Functions
 
-        private float CalculateTotalHitpoints()
+        public float CalculateTotalHitpoints()
         {
             float hitpoints;
 
             if (!part.IsMissile())
             {
-                //1. Density of the dry mass of the part.
-                var density = part.GetDensity();
 
-                //2. Incresing density based on crash tolerance
-                density += Mathf.Clamp(part.crashTolerance, 10f, 30f);
+                var averageSize = part.GetAverageBoundSize();
+                var sphereRadius = averageSize * 0.5f;
+                var sphereSurface = 4 * Mathf.PI * sphereRadius * sphereRadius;
+                var structuralVolume = sphereSurface * 0.1f;
 
-                //12 square meters is the standard size of MK1 fuselage using it as a base
-                var areaExcess = Mathf.Max(part.GetArea() - 12f, 0);
-                var areaCalculation = Mathf.Min(12f, part.GetArea()) + Mathf.Pow(areaExcess, (1f / 3f));
-
+                var density = (part.mass * 1000f) / structuralVolume;
+                density = Mathf.Clamp(density, 1000, 10000);
+                //Debug.Log("[BDArmory]: Hitpoint Calc" + part.name + " | structuralVolume : " + structuralVolume);
+                //Debug.Log("[BDArmory]: Hitpoint Calc"+part.name+" | Density : " + density);
+                
+                var structuralMass = density * structuralVolume;
+                //Debug.Log("[BDArmory]: Hitpoint Calc" + part.name + " | structuralMass : " + structuralMass);
                 //3. final calculations 
-                hitpoints = areaCalculation * density * hitpointMultiplier;
-                hitpoints = Mathf.Round(hitpoints/500) * 500;
+                hitpoints =  structuralMass * hitpointMultiplier *0.33f;
+                hitpoints = Mathf.Round(hitpoints / HpRounding) * HpRounding;
 
-                if (hitpoints <= 0) hitpoints = 500;                
+                if (hitpoints <= 0) hitpoints = HpRounding;
             }
             else
             {
@@ -192,16 +202,15 @@ namespace BDArmory.Core.Module
                 hitpoints = maxHitPoints;
             }
 
-            
-            if (hitpoints <= 0) hitpoints = 500;
+            if (hitpoints <= 0) hitpoints = HpRounding;
             return hitpoints;
         }
 
         public void DestroyPart()
         {
-            if(part.mass <= 2f) part.explosionPotential *= 0.85f;
+            if (part.mass <= 2f) part.explosionPotential *= 0.85f;
 
-            PartExploderSystem.AddPartToExplode(part);      
+            PartExploderSystem.AddPartToExplode(part);
         }
 
         public float GetMaxArmor()
@@ -212,7 +221,7 @@ namespace BDArmory.Core.Module
 
         public float GetMaxHitpoints()
         {
-            UI_ProgressBar hitpointField = (UI_ProgressBar) Fields["Hitpoints"].uiControlEditor;
+            UI_ProgressBar hitpointField = (UI_ProgressBar)Fields["Hitpoints"].uiControlEditor;
             return hitpointField.maxValue;
         }
 
@@ -225,7 +234,7 @@ namespace BDArmory.Core.Module
         {
             Hitpoints -= partdamage;
 
-            if(Hitpoints <= 0)
+            if (Hitpoints <= 0)
             {
                 DestroyPart();
             }
@@ -252,7 +261,7 @@ namespace BDArmory.Core.Module
             if (Hitpoints <= 0)
             {
                 // oh the humanity!
-                PartExploderSystem.AddPartToExplode(kerbal.part);    
+                PartExploderSystem.AddPartToExplode(kerbal.part);
             }
         }
 
@@ -267,11 +276,11 @@ namespace BDArmory.Core.Module
 
         public void overrideArmorSetFromConfig(float thickness = 0)
         {
-            ArmorSet = true;                     
+            ArmorSet = true;
             if (ArmorThickness != 0)
             {
                 Armor = ArmorThickness;
-            }            
+            }
         }
 
         #endregion

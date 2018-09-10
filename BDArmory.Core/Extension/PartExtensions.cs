@@ -93,7 +93,7 @@ namespace BDArmory.Core.Extension
 
             float damage_ = ((0.5f * (mass * Mathf.Pow(impactVelocity, 2)))
                             * (BDArmorySettings.DMG_MULTIPLIER / 100) * bulletDmgMult
-                            * 1e-4f);
+                            * 1e-4f * BDArmorySettings.BALLISTIC_DMG_FACTOR);
             
             //////////////////////////////////////////////////////////
             //   Armor Reduction factors
@@ -274,31 +274,49 @@ namespace BDArmory.Core.Extension
                    part.Modules.Contains("BDModularGuidance");
         }
 
-        public static float GetArea(this Part part)
+        public static float GetArea(this Part part, bool isprefab = false, Part prefab = null)
         {
-            var boundsSize = PartGeometryUtil.MergeBounds(part.GetRendererBounds(), part.transform).size;
-            float sfcAreaCalc = 2f * (boundsSize.x * boundsSize.y) + 2f * (boundsSize.y * boundsSize.z) + 2f * (boundsSize.x * boundsSize.z);
-            //Debug.Log("[BDArmory]: Surface Area1: " + part.surfaceAreas.magnitude);
-            //Debug.Log("[BDArmory]: Surface Area2: " + sfcAreaCalc);
-
+            var size = part.GetSize();
+            float sfcAreaCalc = 2f * (size.x * size.y) + 2f * (size.y * size.z) + 2f * (size.x * size.z);
+        
             return sfcAreaCalc;
         }
 
         public static float GetAverageBoundSize(this Part part)
         {
-            var boundsSize = PartGeometryUtil.MergeBounds(part.GetRendererBounds(), part.transform).size;
-            return (boundsSize.x + boundsSize.y + boundsSize.z) / 3f;
+            var size = part.GetSize();
+
+
+
+            return (size.x + size.y + size.z) / 3f;
         }
 
         public static float GetVolume(this Part part)
         {
-            var boundsSize = PartGeometryUtil.MergeBounds(part.GetRendererBounds(), part.transform).size;
-            return boundsSize.x * boundsSize.y * boundsSize.z;
+            var size = part.GetSize();
+            var volume = size.x * size.y * size.z;
+            return volume;
         }
 
-        public static float GetDensity (this Part part)
+        public static Vector3 GetSize(this Part part)
         {
-            return (part.mass * 1000) / part.GetVolume();
+            var tweakScaleModule = part.Modules["TweakScale"];
+
+            var size =  part.GetComponentInChildren<MeshFilter>().mesh.bounds.size;
+            
+            if (part.name.Contains("B9.Aero.Wing.Procedural"))
+            {
+                size = size * 0.1f;
+            }
+
+            float scaleMultiplier = 1f;
+            if (tweakScaleModule != null)
+            {
+                scaleMultiplier = tweakScaleModule.Fields["currentScale"].GetValue<float>(tweakScaleModule) /
+                                  tweakScaleModule.Fields["defaultScale"].GetValue<float>(tweakScaleModule);
+            }
+
+            return size * scaleMultiplier;
         }
 
         public static bool IsAero(this Part part)
@@ -349,7 +367,8 @@ namespace BDArmory.Core.Extension
         }
 
         public static float DamageReduction(float armor, float damage,bool isMissile,float caliber = 0, float penetrationfactor = 0)
-        {           
+        {
+            float _damageReduction;
 
             if (isMissile)
             {
@@ -368,21 +387,38 @@ namespace BDArmory.Core.Extension
 
             }
 
-            if(!isMissile && !(penetrationfactor >= 1f))
+            if (!isMissile && !(penetrationfactor >= 1f))
             {
-                if (BDAMath.Between(armor, 100f, 200f))
+                //if (BDAMath.Between(armor, 100f, 200f))
+                //{
+                //    damage *= 0.300f;
+                //}
+                //else if (BDAMath.Between(armor, 200f, 400f))
+                //{
+                //    damage *= 0.250f;
+                //}
+                //else if (BDAMath.Between(armor, 400f, 500f))
+                //{
+                //    damage *= 0.200f;
+                //}
+
+                
+                //y=(98.34817*x)/(97.85935+x)
+
+                _damageReduction = (113 * armor) / (154 + armor);
+               
+
+                if (BDArmorySettings.DRAW_DEBUG_LABELS)
                 {
-                    damage *= 0.300f;
+                    Debug.Log("[BDArmory]: Damage Before Reduction : " + Math.Round(damage, 2) / 100);
+                    Debug.Log("[BDArmory]: Damage Reduction : " + Math.Round(_damageReduction, 2)/100);
+                    Debug.Log("[BDArmory]: Damage After Armor : " + Math.Round(damage *= (_damageReduction / 100f)));
                 }
-                else if (BDAMath.Between(armor, 200f, 400f))
-                {
-                    damage *= 0.250f;
-                }
-                else if (BDAMath.Between(armor, 400f, 500f))
-                {
-                    damage *= 0.200f;
-                }
+
+                damage *= (_damageReduction / 100f);
             }
+
+            
 
             return damage;
         }
@@ -400,6 +436,11 @@ namespace BDArmory.Core.Extension
                 //part.gameObject.AddOrGetComponent<DamageFX>();
             }
 
+        }
+
+        public static Vector3 GetBoundsSize(Part part)
+        {
+            return PartGeometryUtil.MergeBounds(part.GetRendererBounds(), part.transform).size;
         }
     }
 }

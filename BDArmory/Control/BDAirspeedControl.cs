@@ -87,7 +87,7 @@ namespace BDArmory.Control
 
             if (engineAccel == 0)
             {
-                s.mainThrottle = 0;
+                s.mainThrottle = accel > 0 ? 1 : 0;
                 return;
             }
 

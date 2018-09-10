@@ -82,11 +82,11 @@
     <Compile Include="FX\MissileFX.cs" />
     <Compile Include="Guidances\CruiseGuidance.cs" />
     <Compile Include="Modules\ModuleDrainEC.cs" />
-    <Compile Include="Modules\ModuleEMP.cs" />
     <Compile Include="Modules\ModuleMissileRearm.cs" />
     <Compile Include="UI\LoadedVesselSwitcher.cs" />
     <Compile Include="Misc\BahaTurretBullet.cs" />
     <Compile Include="Misc\BDAModuleInfos.cs" />
+    <Compile Include="Modules\ModuleEMP.cs" />
     <Compile Include="Modules\CFEnable.cs" />
     <Compile Include="Modules\EngageableWeapon.cs" />
     <Compile Include="Modules\IEngageService.cs" />
@@ -426,7 +426,7 @@
     <None Include="Distribution\GameData\BDArmory\Sounds\warning.ogg" />
     <None Include="Distribution\GameData\BDArmory\Sounds\windloop.ogg" />
     <None Include="Shaders\rcsShader.shader" />
-    <None Include="packages.config" />
+    <None Include="Shaders\rcsShader.shader" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Distribution\GameData\BDArmory\Agencies\BDA.png" />
@@ -634,7 +634,7 @@ copy /Y "$(TargetDir)"BDArmory*.pdb "%25KSP_DIR%25\GameData\%25ModName%25\Plugin
 @echo deleting previous build ...
 if exist "%25DIST_DIR%25\%25ModName%25.*.zip" del "%25DIST_DIR%25\%25ModName%25.*.zip"
 @echo packaging new build...
-call "%25ZA_DIR%25\7za.exe" a -tzip -r  "%25DIST_DIR%25\%25ModName%25.@(VersionNumber)_%25DATE:~4,2%25%25DATE:~7,2%25%25DATE:~10,4%25.zip" "$(ProjectDir)Distribution\*.*"
+call "%25ZA_DIR%25\7za.exe" a -tzip -r  "%25DIST_DIR%25\%25ModName%25.@(VersionNumber)_%25DATE:~4,2%25%25DATE:~7,2%25%25DATE:~10,4%25%25time:~0,2%25%25time:~3,2%25.zip" "$(ProjectDir)Distribution\*.*"
 
 @echo Deploy $(ProjectDir) Distribution files to test env:  %25KSP_DIR%25\GameData...
 @echo copying:"$(ProjectDir)Distribution\GameData" to "%25KSP_DIR%25\GameData" 

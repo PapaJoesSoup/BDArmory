@@ -263,6 +263,8 @@ namespace BDArmory.Modules
         public float bulletDmgMult = 1; //Used for heat damage modifier for non-explosive bullets
         [KSPField]
         public float bulletVelocity = 1030; //velocity in meters/second
+        [KSPField]
+        public float ECPerShot = 0; //EC to use per shot for weapons like railguns
 
         [KSPField]
         public string bulletDragTypeName = "AnalyticEstimate";
@@ -408,7 +410,7 @@ namespace BDArmory.Modules
         public bool proximityDetonation = false;
 
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Default Detonation Range"),
-         UI_FloatRange(minValue = 500, maxValue = 3500f, stepIncrement = 1f, scene = UI_Scene.All)]
+         UI_FloatRange(minValue = 500, maxValue = 8000f, stepIncrement = 5f, scene = UI_Scene.All)]
         public float defaultDetonationRange = 3500;
 
         [KSPField]
@@ -980,8 +982,9 @@ namespace BDArmory.Modules
                 //Transform[] fireTransforms = part.FindModelTransforms("fireTransform");
                 for (int i = 0; i < fireTransforms.Length; i++)
                 {
-                    if ((BDArmorySettings.INFINITE_AMMO || part.RequestResource(ammoName, requestResourceAmount) > 0))
-                    {
+                    //if ((BDArmorySettings.INFINITE_AMMO || part.RequestResource(ammoName, requestResourceAmount) > 0))
+                    if (CanFire())
+                        {
                         Transform fireTransform = fireTransforms[i];
                         spinningDown = false;
 
@@ -1211,6 +1214,8 @@ namespace BDArmory.Modules
 
                         //heat
                         heat += heatPerShot;
+                        //EC
+                        DrainECPerShot();
                     }
                     else
                     {
@@ -1446,6 +1451,34 @@ namespace BDArmory.Modules
             }
         }
 
+        void DrainECPerShot()
+        {
+            if (ECPerShot == 0) return;
+            //double drainAmount = ECPerShot * TimeWarp.fixedDeltaTime;
+            double drainAmount = ECPerShot;
+            double chargeAvailable = part.RequestResource("ElectricCharge", drainAmount, ResourceFlowMode.ALL_VESSEL);
+        }
+
+        bool CanFire()
+        {
+
+            if (ECPerShot != 0)
+            {
+                double chargeAvailable = part.RequestResource("ElectricCharge", ECPerShot, ResourceFlowMode.ALL_VESSEL);
+                if (chargeAvailable < ECPerShot * 0.95f)
+                {
+                    ScreenMessages.PostScreenMessage("Weapon Requires EC", 5.0f, ScreenMessageStyle.UPPER_CENTER);
+                    return false;
+                }
+            }
+
+            if ((BDArmorySettings.INFINITE_AMMO || part.RequestResource(ammoName, requestResourceAmount) > 0))
+            {
+                return true;
+            }
+            
+            return false;
+        }
 
         #endregion
 

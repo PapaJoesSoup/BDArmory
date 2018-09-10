@@ -3,131 +3,131 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using BDArmory.Core;
+using BDArmory.UI;
 using BDArmory.Core.Extension;
 using BDArmory.Core.Utils;
 using BDArmory.FX;
 using BDArmory.Guidances;
 using BDArmory.Misc;
-using BDArmory.Parts;
 using BDArmory.Radar;
-using BDArmory.Targeting;
-using BDArmory.UI;
 using UniLinq;
 using UnityEngine;
+using BDArmory.Targeting;
+using BDArmory.Parts;
 
 namespace BDArmory.Modules
-{	
-	public class MissileLauncher : MissileBase
+{
+    public class MissileLauncher : MissileBase
     {
 
         #region  Variable Declarations
 
         [KSPField]
-		public string homingType = "AAM";
+        public string homingType = "AAM";
 
         [KSPField]
-		public string targetingType = "none";
- 
+        public string targetingType = "none";
+
         public MissileTurret missileTurret = null;
-		public BDRotaryRail rotaryRail = null;
+        public BDRotaryRail rotaryRail = null;
 
-		[KSPField]
-		public string exhaustPrefabPath;
+        [KSPField]
+        public string exhaustPrefabPath;
 
-		[KSPField]
-		public string boostExhaustPrefabPath;
+        [KSPField]
+        public string boostExhaustPrefabPath;
 
-		[KSPField]
-		public string boostExhaustTransformName;
+        [KSPField]
+        public string boostExhaustTransformName;
 
         #region Aero
 
         [KSPField]
-		public bool aero = false;
-		[KSPField]
-		public float liftArea = 0.015f;
-		[KSPField]
-		public float steerMult = 0.5f;
-		[KSPField]
-		public float torqueRampUp = 30f;
-		Vector3 aeroTorque = Vector3.zero;
-		float controlAuthority;
-		float finalMaxTorque;
-		[KSPField]
-		public float aeroSteerDamping = 0;
+        public bool aero = false;
+        [KSPField]
+        public float liftArea = 0.015f;
+        [KSPField]
+        public float steerMult = 0.5f;
+        [KSPField]
+        public float torqueRampUp = 30f;
+        Vector3 aeroTorque = Vector3.zero;
+        float controlAuthority;
+        float finalMaxTorque;
+        [KSPField]
+        public float aeroSteerDamping = 0;
 
         #endregion
 
         [KSPField]
-		public float maxTorque = 90;
-	
-		[KSPField]
-		public float thrust = 30;
-		[KSPField]
-		public float cruiseThrust = 3;
-		
-		[KSPField]
-		public float boostTime = 2.2f;
-		[KSPField]
-		public float cruiseTime = 45;
-		[KSPField]
-		public float cruiseDelay = 0;
-	
-		[KSPField]
-		public float maxAoA = 35;
-		
-		[KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "Direction: "), 
-			UI_Toggle(disabledText = "Lateral", enabledText = "Forward")]
-		public bool decoupleForward = false;
+        public float maxTorque = 90;
+
+        [KSPField]
+        public float thrust = 30;
+        [KSPField]
+        public float cruiseThrust = 3;
+
+        [KSPField]
+        public float boostTime = 2.2f;
+        [KSPField]
+        public float cruiseTime = 45;
+        [KSPField]
+        public float cruiseDelay = 0;
+
+        [KSPField]
+        public float maxAoA = 35;
+
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "Direction: "),
+            UI_Toggle(disabledText = "Lateral", enabledText = "Forward")]
+        public bool decoupleForward = false;
 
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Decouple Speed"),
                   UI_FloatRange(minValue = 0f, maxValue = 10f, stepIncrement = 0.1f, scene = UI_Scene.Editor)]
         public float decoupleSpeed = 0;
 
         [KSPField]
-		public float optimumAirspeed = 220;
-		
-		[KSPField]
-		public float blastRadius = 150;
+        public float optimumAirspeed = 220;
+
+        [KSPField]
+        public float blastRadius = 150;
 
         [KSPField]
         public float blastPower = 25;
 
         [KSPField]
-		public float blastHeat = -1;
+        public float blastHeat = -1;
 
         [KSPField]
-		public float maxTurnRateDPS = 20;
+        public float maxTurnRateDPS = 20;
 
         [KSPField]
-		public bool proxyDetonate = true;
-		
-		[KSPField]
-		public string audioClipPath = string.Empty;
+        public bool proxyDetonate = true;
 
-		AudioClip thrustAudio;
+        [KSPField]
+        public string audioClipPath = string.Empty;
 
-		[KSPField]
-		public string boostClipPath = string.Empty;
+        AudioClip thrustAudio;
 
-		AudioClip boostAudio;
-		
-		[KSPField]
-		public bool isSeismicCharge = false;
-		
-		[KSPField]
-		public float rndAngVel = 0;
-		
+        [KSPField]
+        public string boostClipPath = string.Empty;
+
+        AudioClip boostAudio;
+
+        [KSPField]
+        public bool isSeismicCharge = false;
+
+        [KSPField]
+        public float rndAngVel = 0;
+
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Max Altitude"),
          UI_FloatRange(minValue = 0f, maxValue = 5000f, stepIncrement = 10f, scene = UI_Scene.All)]
         public float maxAltitude = 0f;
 
         [KSPField]
-		public string rotationTransformName = string.Empty;
-		Transform rotationTransform;
+        public string rotationTransformName = string.Empty;
+        Transform rotationTransform;
 
-		[KSPField]
-		public bool terminalManeuvering = false;
+        [KSPField]
+        public bool terminalManeuvering = false;
 
         [KSPField]
         public string terminalGuidanceType = "";
@@ -139,87 +139,87 @@ namespace BDArmory.Modules
         public bool terminalGuidanceShouldActivate = true;
 
         [KSPField]
-		public string explModelPath = "BDArmory/Models/explosion/explosion";
-		
-		public string explSoundPath = "BDArmory/Sounds/explode1";
-		
-		[KSPField]
-		public bool spoolEngine = false;
-		
-		[KSPField]
-		public bool hasRCS = false;
-		[KSPField]
-		public float rcsThrust = 1;
-		float rcsRVelThreshold = 0.13f;
-		KSPParticleEmitter upRCS;
-		KSPParticleEmitter downRCS;
-		KSPParticleEmitter leftRCS;
-		KSPParticleEmitter rightRCS;
-		KSPParticleEmitter forwardRCS;
-		float rcsAudioMinInterval = 0.2f;
+        public string explModelPath = "BDArmory/Models/explosion/explosion";
 
-		private AudioSource audioSource;
-		public AudioSource sfAudioSource;
-		List<KSPParticleEmitter> pEmitters;
-		List<BDAGaplessParticleEmitter> gaplessEmitters;
-		
-		float cmTimer;
-		
-		//deploy animation
-		[KSPField]
-		public string deployAnimationName = "";
-		
-		[KSPField]
-		public float deployedDrag = 0.02f;
-		
-		[KSPField]
-		public float deployTime = 0.2f;
-
-		[KSPField]
-		public bool useSimpleDrag = false;
+        public string explSoundPath = "BDArmory/Sounds/explode1";
 
         [KSPField]
-		public float simpleDrag = 0.02f;
+        public bool spoolEngine = false;
 
         [KSPField]
-		public float simpleStableTorque = 5;
+        public bool hasRCS = false;
+        [KSPField]
+        public float rcsThrust = 1;
+        float rcsRVelThreshold = 0.13f;
+        KSPParticleEmitter upRCS;
+        KSPParticleEmitter downRCS;
+        KSPParticleEmitter leftRCS;
+        KSPParticleEmitter rightRCS;
+        KSPParticleEmitter forwardRCS;
+        float rcsAudioMinInterval = 0.2f;
 
-		[KSPField]
-		public Vector3 simpleCoD = new Vector3(0,0,-1);
+        private AudioSource audioSource;
+        public AudioSource sfAudioSource;
+        List<KSPParticleEmitter> pEmitters;
+        List<BDAGaplessParticleEmitter> gaplessEmitters;
 
-		[KSPField]
-		public float agmDescentRatio = 1.45f;
-		
-		float currentThrust;
-		
-		public bool deployed;
-		//public float deployedTime;
-		
-		AnimationState[] deployStates;
-		
-		bool hasPlayedFlyby;
-	
-		float debugTurnRate;
+        float cmTimer;
 
-		List<GameObject> boosters;
-		[KSPField]
-		public bool decoupleBoosters = false;
-		[KSPField]
-		public float boosterDecoupleSpeed = 5;
-		[KSPField]
-		public float boosterMass = 0;
+        //deploy animation
+        [KSPField]
+        public string deployAnimationName = "";
 
-		Transform vesselReferenceTransform;
+        [KSPField]
+        public float deployedDrag = 0.02f;
 
-		[KSPField]
-		public string boostTransformName = string.Empty;
-		List<KSPParticleEmitter> boostEmitters;
-		List<BDAGaplessParticleEmitter> boostGaplessEmitters;
-		
-		[KSPField]
-		public bool torpedo = false;
-		[KSPField]
-		public float waterImpactTolerance = 25;
+        [KSPField]
+        public float deployTime = 0.2f;
+
+        [KSPField]
+        public bool useSimpleDrag = false;
+
+        [KSPField]
+        public float simpleDrag = 0.02f;
+
+        [KSPField]
+        public float simpleStableTorque = 5;
+
+        [KSPField]
+        public Vector3 simpleCoD = new Vector3(0, 0, -1);
+
+        [KSPField]
+        public float agmDescentRatio = 1.45f;
+
+        float currentThrust;
+
+        public bool deployed;
+        //public float deployedTime;
+
+        AnimationState[] deployStates;
+
+        bool hasPlayedFlyby;
+
+        float debugTurnRate;
+
+        List<GameObject> boosters;
+        [KSPField]
+        public bool decoupleBoosters = false;
+        [KSPField]
+        public float boosterDecoupleSpeed = 5;
+        [KSPField]
+        public float boosterMass = 0;
+
+        Transform vesselReferenceTransform;
+
+        [KSPField]
+        public string boostTransformName = string.Empty;
+        List<KSPParticleEmitter> boostEmitters;
+        List<BDAGaplessParticleEmitter> boostGaplessEmitters;
+
+        [KSPField]
+        public bool torpedo = false;
+        [KSPField]
+        public float waterImpactTolerance = 25;
 
         //ballistic options
         [KSPField]
@@ -283,6 +283,12 @@ namespace BDArmory.Modules
             part.decouple(0);
             if (BDArmorySetup.Instance.ActiveWeaponManager != null) BDArmorySetup.Instance.ActiveWeaponManager.UpdateList();
         }
+
+        [KSPAction("Jettison")]
+        public void AGJettsion(KSPActionParam param)
+        {
+            Jettison();
+        }                    
 
         void ParseWeaponClass()
 		{

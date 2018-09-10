@@ -364,7 +364,7 @@ namespace BDArmory.Modules
                 GUI.HorizontalSlider(
                     new Rect(margin + (buttonWidth/3),
                         buttonEndY + margin + (commandButtonLine*(buttonHeight + buttonGap)), 2*buttonWidth/3, 20),
-                    spread, 20f, 200f, BDArmorySetup.BDGuiSkin.horizontalSlider, BDArmorySetup.BDGuiSkin.horizontalSliderThumb);
+                    spread, 1f, 200f, BDArmorySetup.BDGuiSkin.horizontalSlider, BDArmorySetup.BDGuiSkin.horizontalSliderThumb);
             commandButtonLine++;
             GUI.Label(
                 new Rect(margin, buttonEndY + margin + (commandButtonLine*(buttonHeight + buttonGap)), buttonWidth/3, 20),

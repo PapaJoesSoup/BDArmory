@@ -119,7 +119,6 @@ namespace BDArmory.Modules
 
         #endregion
 
-
         #region KSP Events & Actions
         [KSPAction("Toggle Radar")]
         public void AGEnable(KSPActionParam param)
@@ -160,7 +159,6 @@ namespace BDArmory.Modules
         }
 
         #endregion
-
 
         #region Part members
         //locks
@@ -266,15 +264,13 @@ namespace BDArmory.Modules
         public float leftLimit;
         public float rightLimit;
         private int snapshotTicker;
-        #endregion
-        
+        #endregion       
         
 
         void UpdateToggleGuiName()
         {
             Events["Toggle"].guiName = radarEnabled ? "Disable Radar" : "Enable Radar";
         }
-
         
         public void EnsureVesselRadarData()
         {
@@ -290,7 +286,6 @@ namespace BDArmory.Modules
     	        vesselRadarData.weaponManager = weaponManager;
             }
         }
-
         
         public void EnableRadar()
         {
@@ -313,7 +308,6 @@ namespace BDArmory.Modules
             UpdateToggleGuiName();
             vesselRadarData.AddRadar(this);
         }
-
         
         public void DisableRadar()
         {
@@ -338,7 +332,6 @@ namespace BDArmory.Modules
             }
             vrd.Dispose();
         }
-
 
         void OnDestroy()
         {
@@ -369,7 +362,6 @@ namespace BDArmory.Modules
                 }
             }
         }
-
 
         public override void OnStart(StartState state)
         {
@@ -451,7 +443,6 @@ namespace BDArmory.Modules
                 Debug.Log("[BDArmory]: WARNING: " + part.name + " has legacy definition, missing new radarDetectionCurve and radarLockTrackCurve definitions! Please update for the part to be usable!");
             }
         }
-
         /*
         void OnGoOnRails(Vessel v)
         {
@@ -488,8 +479,7 @@ namespace BDArmory.Modules
             UpdateToggleGuiName();
             startupComplete = true;
         }
-
-        
+                
         void Update()
         {
             if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && !vessel.packed && radarEnabled)
@@ -513,8 +503,7 @@ namespace BDArmory.Modules
             drawGUI = (HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && !vessel.packed && radarEnabled &&
                        vessel.isActiveVessel && BDArmorySetup.GAME_UI_ENABLED && !MapView.MapIsEnabled);
         }
-
-        
+               
         void FixedUpdate()
         {
             if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && startupComplete)
@@ -552,8 +541,7 @@ namespace BDArmory.Modules
             }
 
         }
-
-        
+                
         void UpdateSlaveData()
         {
             if (slaveTurrets && weaponManager)
@@ -568,8 +556,7 @@ namespace BDArmory.Modules
                 }
             }
         }
-
-        
+                
         void LateUpdate()
         {
             if (HighLogic.LoadedSceneIsFlight && (canScan || canLock))
@@ -577,8 +564,7 @@ namespace BDArmory.Modules
                 UpdateModel();
             }
         }
-
-        
+                
         void UpdateModel()
         {
             //model rotation
@@ -634,8 +620,7 @@ namespace BDArmory.Modules
                 }
             }
         }
-
-
+        
         void Scan()
         {
             float angleDelta = scanRotationSpeed*Time.fixedDeltaTime;
@@ -681,7 +666,6 @@ namespace BDArmory.Modules
             }
         }
 
-        
         public bool TryLockTarget(Vector3 position)
         {
             if (!canLock)
@@ -711,7 +695,7 @@ namespace BDArmory.Modules
 
             for (int i = 0; i < attemptedLocks.Length; i++)
             {
-                if (attemptedLocks[i].exists && (attemptedLocks[i].predictedPosition - position).sqrMagnitude < 40*40)
+                if (attemptedLocks[i].exists && (attemptedLocks[i].predictedPosition - position).sqrMagnitude < 40 * 40)
                 {
                     if (!locked && !omnidirectional)
                     {
@@ -736,9 +720,8 @@ namespace BDArmory.Modules
                 Debug.Log("[BDArmory]: - Failed to lock on target.");
 
             return false;
-        }
+        }        
 
-        
         void BoresightScan()
         {
             if (locked)
@@ -758,8 +741,7 @@ namespace BDArmory.Modules
                 return;
             }
         }
-
-
+        
         void UpdateLock(int index)
         {
             TargetSignatureData lockedTarget = lockedTargets[index];
@@ -835,8 +817,7 @@ namespace BDArmory.Modules
                 }
             }
         }
-
-        
+                
         public void UnlockAllTargets()
         {
             if (!locked) return;
@@ -853,8 +834,7 @@ namespace BDArmory.Modules
             if (BDArmorySettings.DRAW_DEBUG_LABELS)
                 Debug.Log("[BDArmory]: Radar Targets were cleared (" + radarName + ").");
         }
-
-        
+                
         public void SetActiveLock(TargetSignatureData target)
         {
             for (int i = 0; i < lockedTargets.Count; i++)
@@ -866,8 +846,7 @@ namespace BDArmory.Modules
                 }
             }
         }
-
-        
+                
         public void UnlockTargetAt(int index, bool tryRelock = false)
         {
             Vessel rVess = lockedTargets[index].vessel;
@@ -899,15 +878,13 @@ namespace BDArmory.Modules
                 vesselRadarData.RemoveVesselFromTargets(rVess);
             }
         }
-
-        
+                
         IEnumerator RetryLockRoutine(Vessel v)
         {
             yield return null;
             vesselRadarData.TryLockTarget(v);
         }
-
-        
+                
         public void UnlockTargetVessel(Vessel v)
         {
             for (int i = 0; i < lockedTargets.Count; i++)
@@ -919,8 +896,7 @@ namespace BDArmory.Modules
                 }
             }
         }
-
-        
+                
         void SlaveTurrets()
         {
             List<ModuleTargetingCamera>.Enumerator mtc = vessel.FindPartModulesImplementing<ModuleTargetingCamera>().GetEnumerator();
@@ -941,8 +917,7 @@ namespace BDArmory.Modules
 
             slaveTurrets = true;
         }
-
-        
+                
         void UnslaveTurrets()
         {
             List<ModuleTargetingCamera>.Enumerator mtc = vessel.FindPartModulesImplementing<ModuleTargetingCamera>().GetEnumerator();
@@ -966,8 +941,7 @@ namespace BDArmory.Modules
 
             slaveTurrets = false;
         }
-
-        
+                
         public void UpdateLockedTargetInfo(TargetSignatureData newData)
         {
             int index = -1;
@@ -983,8 +957,7 @@ namespace BDArmory.Modules
                 lockedTargets[index] = newData;
             }
         }
-
-        
+                
         public void ReceiveContactData(TargetSignatureData contactData, bool _locked)
         {
             if (vesselRadarData)
@@ -1003,8 +976,7 @@ namespace BDArmory.Modules
             }
             vrd.Dispose();
         }
-
-        
+                
         public void AddExternalVRD(VesselRadarData vrd)
         {
             if (!linkedToVessels.Contains(vrd))
@@ -1012,14 +984,12 @@ namespace BDArmory.Modules
                 linkedToVessels.Add(vrd);
             }
         }
-
-        
+                
         public void RemoveExternalVRD(VesselRadarData vrd)
         {
             linkedToVessels.Remove(vrd);
         }
-
-        
+                
         void OnGUI()
         {
             if (drawGUI)
@@ -1031,8 +1001,7 @@ namespace BDArmory.Modules
                 }
             }
         }
-
-        
+                
         public void RecoverLinkedVessels()
         {
             string[] vesselIDs = linkedVesselID.Split(new char[] {','});
@@ -1041,8 +1010,7 @@ namespace BDArmory.Modules
                 StartCoroutine(RecoverLinkedVesselRoutine(vesselIDs[i]));
             }
         }
-
-        
+                
         IEnumerator RecoverLinkedVesselRoutine(string vesselID)
         {
             while (true)
@@ -1062,8 +1030,7 @@ namespace BDArmory.Modules
                 yield return new WaitForSeconds(0.5f);
             }
         }
-
-        
+                
         IEnumerator RelinkVRDWhenReadyRoutine(VesselRadarData vrd)
         {
             while (!vrd.radarsReady || vrd.vessel.packed)
@@ -1075,8 +1042,7 @@ namespace BDArmory.Modules
             Debug.Log("[BDArmory]: Radar data link recovered: Local - " + vessel.vesselName + ", External - " +
                       vrd.vessel.vesselName);
         }
-
-
+        
         public string getRWRType(int i)
         {
             switch (i)
@@ -1099,7 +1065,6 @@ namespace BDArmory.Modules
             //{SAM = 0, Fighter = 1, AWACS = 2, MissileLaunch = 3, MissileLock = 4, Detection = 5, Sonar = 6}
         }
 
-        
         // RMB info in editor
         public override string GetInfo()
         {
@@ -1142,8 +1107,7 @@ namespace BDArmory.Modules
 
             return output.ToString();
         }
-
-
+        
         void DrainElectricity()
         {
             if (resourceDrain <= 0)
