@@ -18,6 +18,8 @@ namespace BDArmory.Modules
 	{
 		public bool hasRocket = true;
 
+		[KSPField] public string shortName = string.Empty;
+
 		[KSPField(isPersistant = false)] public string rocketType;
 
 		[KSPField(isPersistant = false)] public string rocketModelPath;
@@ -102,6 +104,11 @@ namespace BDArmory.Modules
 		public Part GetPart()
 		{
 			return part;
+		}
+
+		public string GetShortName()
+		{
+			return shortName;
 		}
 
 		public WeaponClasses GetWeaponClass()
