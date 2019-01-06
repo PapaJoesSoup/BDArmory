@@ -15,6 +15,8 @@ namespace BDArmory.Core
         [BDAPersistantSettingsField] public static bool INFINITE_AMMO = false;
         [BDAPersistantSettingsField] public static bool DRAW_DEBUG_LINES = false;
         [BDAPersistantSettingsField] public static bool DRAW_DEBUG_LABELS = false;
+        [BDAPersistantSettingsField] public static bool DRAW_TEAM_ICONS = false;
+        [BDAPersistantSettingsField] public static bool DRAW_TEAM_NAMES = false;
         [BDAPersistantSettingsField] public static bool DRAW_AIMERS = true;
         [BDAPersistantSettingsField] public static bool AIM_ASSIST = true;
         [BDAPersistantSettingsField] public static bool REMOTE_SHOOTING = false;
