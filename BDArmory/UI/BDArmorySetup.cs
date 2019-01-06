@@ -1385,10 +1385,12 @@ namespace BDArmory.UI
             GUI.Label(SLeftRect(line), $"Max Bullet Holes:  ({BDArmorySettings.MAX_NUM_BULLET_DECALS})", leftLabel);
             BDArmorySettings.MAX_NUM_BULLET_DECALS = (int)GUI.HorizontalSlider(SRightRect(line), BDArmorySettings.MAX_NUM_BULLET_DECALS, 1f, 999);
             line++;
+            BDArmorySettings.DRAW_TEAM_ICONS = GUI.Toggle(SRightRect(line), BDArmorySettings.DRAW_TEAM_ICONS, "Team Icons");
             line++;
 
             bool origPm = BDArmorySettings.PEACE_MODE;
             BDArmorySettings.PEACE_MODE = GUI.Toggle(SLeftRect(line), BDArmorySettings.PEACE_MODE, "Peace Mode");
+            BDArmorySettings.DRAW_TEAM_NAMES = GUI.Toggle(SRightRect(line), BDArmorySettings.DRAW_TEAM_NAMES, "Team Icon Name Tags");
             if (BDArmorySettings.PEACE_MODE && !origPm)
             {
                 BDATargetManager.ClearDatabase();
