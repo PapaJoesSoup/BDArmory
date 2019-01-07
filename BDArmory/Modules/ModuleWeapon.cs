@@ -796,9 +796,9 @@ namespace BDArmory.Modules
                     return;
                 }
 
-
-				if (vessel.isActiveVessel)
+if (vessel.isActiveVessel)
 				{
+					part.stackIcon.ClearInfoBoxes();
 					if (!BDArmorySettings.INFINITE_AMMO)
 					{
 						List<Part>.Enumerator p = vessel.parts.GetEnumerator(); //grab ammo amounts
@@ -820,7 +820,8 @@ namespace BDArmory.Modules
 							resource.Dispose();
 						}
 						p.Dispose();
-						part.stackIcon.ClearInfoBoxes();
+
+
 						if (!isOutofAmmo) //init UI gauges
 						{
 							ammoGauge = InitAmmoGauge(); //simply using InitXXXXGauge() will spawn endless gauges
@@ -831,7 +832,6 @@ namespace BDArmory.Modules
 						}
 						UpdateAmmoMeter();
 						UpdateEmptyAlert();
-						UpdateAmmo();
 					}
 					if ((heat > maxHeat / 3))
 					{
@@ -843,6 +843,7 @@ namespace BDArmory.Modules
 					}
 					UpdateHeatMeter();
 					UpdateReloadMeter();
+					UpdateAmmo();
 				}
 				UpdateHeat();
 				if (weaponState == WeaponStates.Enabled &&
@@ -2068,59 +2069,92 @@ namespace BDArmory.Modules
 		}
 		public void UpdateAmmoMeter()
 		{
-			if (!isOutofAmmo)
+			if (!BDArmorySettings.INFINITE_AMMO)
 			{
-				if (ammoGauge == null)
+				if (!isOutofAmmo)
 				{
-					ammoGauge = InitAmmoGauge();
+					if (ammoGauge == null)
+					{
+						ammoGauge = InitAmmoGauge();
+					}
+					ammoGauge?.SetValue(ammoAmount, 0, ammoMax);  //null check
 				}
-				ammoGauge?.SetValue(ammoAmount, 0, ammoMax);  //null check
-			}
-			else if (isOutofAmmo)
-			{
-				part.stackIcon.ClearInfoBoxes();
-				ammoGauge = null;
-				emptyGauge = InitEmptyGauge();
-				if (heat > maxHeat / 3) //redraw heat meter after clearing UI if necessary
+				else
 				{
-					heatGauge = InitHeatGauge();
-					heatGauge?.SetValue(heat, maxHeat / 3, maxHeat);
+					part.stackIcon.ClearInfoBoxes();
+					ammoGauge = null;
+					emptyGauge = InitEmptyGauge();
+					if (heat > maxHeat / 3) //redraw meters after clearing UI if necessary
+					{
+						heatGauge = InitHeatGauge();
+						heatGauge?.SetValue(heat, maxHeat / 3, maxHeat);
+					}
+					if (Time.time - timeFired < (60 / roundsPerMinute) && Time.time - timeFired > 0.1f)
+					{
+						reloadBar = InitReloadBar();
+					}
 				}
 			}
-			if (BDArmorySettings.INFINITE_AMMO) //clear ammo gauges if infinite ammo, they're unnecessary
+			else //clear ammo gauges if infinite ammo, they're unnecessary
 			{
 				part.stackIcon.ClearInfoBoxes();
 				ammoGauge = null;
 				if (heat > maxHeat / 3)
 				{
-					heatGauge = InitHeatGauge();// redraw other gauges relevant
+					heatGauge = InitHeatGauge();// redraw heat meter if present
 					heatGauge?.SetValue(heat, maxHeat / 3, maxHeat);
 				}
-				if (showReloadMeter)
+				if ((Time.time - timeFired < (60 / roundsPerMinute) && Time.time - timeFired > 0.1f ) && showReloadMeter)
 				{
 					reloadBar = InitReloadBar();
+					reloadBar.SetValue(Time.time - timeFired, 0, 60 / roundsPerMinute);
 				}
 			}
 		}
 		public void UpdateEmptyAlert()
 		{
-			if (isOutofAmmo)
+			if (!BDArmorySettings.INFINITE_AMMO)
 			{
-				if (emptyGauge == null)
+				if (isOutofAmmo)
 				{
-					emptyGauge = InitEmptyGauge();
+					if (emptyGauge == null)
+					{
+						emptyGauge = InitEmptyGauge();
+					}
+					emptyGauge?.SetValue(1, 0, 1);    //null check
 				}
-				emptyGauge?.SetValue(1, 0, 1);    //null check
+				else if (emptyGauge != null && !isOutofAmmo)
+				{
+					part.stackIcon.ClearInfoBoxes();
+					emptyGauge = null;
+					if (heat > maxHeat / 3)
+					{
+						heatGauge = InitHeatGauge();
+						heatGauge?.SetValue(heat, maxHeat / 3, maxHeat);
+					}
+					if ((Time.time - timeFired < (60 / roundsPerMinute) && Time.time - timeFired > 0.1f) && showReloadMeter)
+					{
+						reloadBar = InitReloadBar();
+						reloadBar.SetValue(Time.time - timeFired, 0, 60 / roundsPerMinute);
+					}
+				}
 			}
-			else if (emptyGauge != null && !isOutofAmmo || BDArmorySettings.INFINITE_AMMO)
+			else
 			{
 				part.stackIcon.ClearInfoBoxes();
 				emptyGauge = null;
 				if (heat > maxHeat / 3)
 				{
 					heatGauge = InitHeatGauge();
+					heatGauge?.SetValue(heat, maxHeat / 3, maxHeat);
+				}
+				if ((Time.time - timeFired < (60 / roundsPerMinute) && Time.time - timeFired > 0.1f) && showReloadMeter)
+				{
+					reloadBar = InitReloadBar();
+					reloadBar.SetValue(Time.time - timeFired, 0, 60 / roundsPerMinute);
 				}
 			}
+
 		}
 		void UpdateHeatMeter()
 		{
@@ -2138,17 +2172,16 @@ namespace BDArmory.Modules
 			{
 				part.stackIcon.ClearInfoBoxes();
 				heatGauge = null;
-				if (!isOutofAmmo)
+				if (!BDArmorySettings.INFINITE_AMMO)
 				{
-					ammoGauge = InitAmmoGauge();
-				}
-				if (isOutofAmmo)
-				{
-					emptyGauge = InitEmptyGauge();
-				}
-				if (showReloadMeter)
-				{
-					reloadBar = InitReloadBar();
+					if (!isOutofAmmo)
+					{
+						ammoGauge = InitAmmoGauge();
+					}
+					if (isOutofAmmo)
+					{
+						emptyGauge = InitEmptyGauge();
+					}
 				}
 			}
 		}
@@ -2175,21 +2208,20 @@ namespace BDArmory.Modules
 				{
 					audioSource.PlayOneShot(reloadCompleteAudioClip);
 				}
-				if (heat > maxHeat / 3)
+				if (!BDArmorySettings.INFINITE_AMMO)
 				{
-					heatGauge = InitHeatGauge();
-				}
-				if (!isOutofAmmo)
-				{
-					ammoGauge = InitAmmoGauge();
-				}
-				if (isOutofAmmo)
-				{
-					emptyGauge = InitEmptyGauge();
+					if (!isOutofAmmo)
+					{
+						ammoGauge = InitAmmoGauge();
+						ammoGauge?.SetValue(ammoAmount, 0, ammoMax);
+					}
+					if (isOutofAmmo)
+					{
+						emptyGauge = InitEmptyGauge();
+					}
 				}
 			}
 		}
-
 		void UpdateTargetVessel()
         {
             targetAcquired = false;
