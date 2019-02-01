@@ -1,37 +1,3 @@
-
-Skip to content
-
-    Pull requests
-    Issues
-    Marketplace
-    Explore
-
-    @SuicidalInsanity
-
-You don’t have any verified emails. We recommend verifying at least one email.
-Email verification helps our support team verify ownership if you lose account access and allows you to receive all the notifications you ask for.
-
-36
-65
-
-    63
-
-PapaJoesSoup/BDArmory forked from BahamutoD/BDArmory
-Code
-Issues 103
-Pull requests 1
-Projects 1
-Wiki
-Insights
-BDArmory/BDArmory/Modules/ModuleWeapon.cs
-dbbb18f on Dec 30, 2018
-@jrodrigv jrodrigv fixing weapon group text
-@Gedas-S
-@jrodrigv
-@PapaJoesSoup
-@gomker
-@SuicidalInsanity
-2592 lines (2228 sloc) 96.4 KB
 using System;
 using System.Collections;
 using System.Collections.Generic;
