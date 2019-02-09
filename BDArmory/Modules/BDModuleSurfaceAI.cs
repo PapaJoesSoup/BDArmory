@@ -396,7 +396,7 @@ namespace BDArmory.Modules
                                         }
                                         break;
                                     case WeaponClasses.Rocket:
-                                        var rocket = (RocketLauncher)weaponManager.selectedWeapon;
+                                        var rocket = (ModuleWeapon)weaponManager.selectedWeapon;
                                         if (rocket.yawRange == 0 || rocket.maxPitch == rocket.minPitch)
                                         {
                                             aimingMode = true;
