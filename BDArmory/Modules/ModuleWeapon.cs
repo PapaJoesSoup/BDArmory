@@ -16,288 +16,305 @@ using UnityEngine;
 
 namespace BDArmory.Modules
 {
-    public class ModuleWeapon : EngageableWeapon, IBDWeapon
-    {
-        #region Declarations
+	public class ModuleWeapon : EngageableWeapon, IBDWeapon
+	{
+		#region Declarations
 
-        public static ObjectPool bulletPool;
-        public static ObjectPool shellPool;
+		public static ObjectPool bulletPool;
+		public static ObjectPool shellPool;
 
-        Coroutine startupRoutine;
-        Coroutine shutdownRoutine;
+		Coroutine startupRoutine;
+		Coroutine shutdownRoutine;
 
-        bool finalFire;
+		bool finalFire;
 
-        public int rippleIndex = 0;
+		public int rippleIndex = 0;
 
-        // WeaponTypes.Cannon is deprecated.  identical behavior is achieved with WeaponType.Ballistic and bulletInfo.explosive = true.
-        public enum WeaponTypes
-        {
-            Ballistic,
-            Cannon,
-            Laser
-        }
-       
-        public enum WeaponStates
-        {
-            Enabled,
-            Disabled,
-            PoweringUp,
-            PoweringDown
-        }
+		// WeaponTypes.Cannon is deprecated.  identical behavior is achieved with WeaponType.Ballistic and bulletInfo.explosive = true.
+		public enum WeaponTypes
+		{
+			Ballistic,
+			Rocket, //Cannon's depreciated, lets use this for rocketlaunchers
+			Laser
+		}
 
-        public enum BulletDragTypes
-        {
-            None,
-            AnalyticEstimate,
-            NumericalIntegration
-        }          
-               
-        public WeaponStates weaponState = WeaponStates.Disabled;
-        
-        //animations
-        private float fireAnimSpeed = 1;
-            //is set when setting up animation so it plays a full animation for each shot (animation speed depends on rate of fire)
+		public enum WeaponStates
+		{
+			Enabled,
+			Disabled,
+			PoweringUp,
+			PoweringDown
+		}
 
-        public float bulletBallisticCoefficient;     
-        
-        public WeaponTypes eWeaponType;
-                
-        public float heat;
-        public bool isOverheated;
+		public enum BulletDragTypes
+		{
+			None,
+			AnalyticEstimate,
+			NumericalIntegration
+		}
+
+		public WeaponStates weaponState = WeaponStates.Disabled;
+
+		//animations
+		private float fireAnimSpeed = 1;
+		//is set when setting up animation so it plays a full animation for each shot (animation speed depends on rate of fire)
+
+		public float bulletBallisticCoefficient;
+
+		public WeaponTypes eWeaponType;
+
+		public float heat;
+		public bool isOverheated;
+		public bool isOutofAmmo = false;
+		public float ammoAmount;
+		public float ammoMax;
 		private bool wasFiring;
-            //used for knowing when to stop looped audio clip (when you're not shooting, but you were)
+		//used for knowing when to stop looped audio clip (when you're not shooting, but you were)
 
-        AudioClip reloadCompleteAudioClip;
-        AudioClip fireSound;
-        AudioClip overheatSound;
-        AudioClip chargeSound;
-        AudioSource audioSource;
-        AudioSource audioSource2;
-        AudioLowPassFilter lowpassFilter;
+		AudioClip reloadCompleteAudioClip;
+		AudioClip fireSound;
+		AudioClip overheatSound;
+		AudioClip chargeSound;
+		public AudioSource audioSource;
+		AudioSource audioSource2;
+		AudioLowPassFilter lowpassFilter;
 
-        //AI
-        public bool aiControlled = false;
-        public bool autoFire;
-        public float autoFireLength = 0;
-        public float autoFireTimer = 0;
+		//AI
+		public bool aiControlled = false;
+		public bool autoFire;
+		public float autoFireLength = 0;
+		public float autoFireTimer = 0;
 
-        //used by AI to lead moving targets
-        private float targetDistance;
-        private Vector3 targetPosition;
-        private Vector3 targetVelocity;  // local frame velocity
-        private Vector3 targetAcceleration; // local frame velocity
-        private Vector3 targetVelocityPrevious; // for acceleration calculation
-        private Vector3 relativeVelocity;
-        Vector3 finalAimTarget;
-        Vector3 lastFinalAimTarget;
-        public Vessel legacyTargetVessel;
-        bool targetAcquired;
+		//used by AI to lead moving targets
+		private float targetDistance;
+		private Vector3 targetPosition;
+		private Vector3 targetVelocity;  // local frame velocity
+		private Vector3 targetAcceleration; // local frame velocity
+		private Vector3 targetVelocityPrevious; // for acceleration calculation
+		private Vector3 relativeVelocity;
+		Vector3 finalAimTarget;
+		Vector3 lastFinalAimTarget;
+		public Vessel legacyTargetVessel;
+		bool targetAcquired;
 
-        public Vector3? FiringSolutionVector => finalAimTarget.IsZero() ? (Vector3?)null : (finalAimTarget - fireTransforms[0].position).normalized;
+		public Vector3? FiringSolutionVector => finalAimTarget.IsZero() ? (Vector3?)null : (finalAimTarget - fireTransforms[0].position).normalized;
 
-        public bool recentlyFiring //used by guard to know if it should evaid this
-        {
-            get { return Time.time - timeFired < 1; }
-        }
-        
-        //used to reduce volume of audio if multiple guns are being fired (needs to be improved/changed)
-        //private int numberOfGuns = 0;
+		public bool recentlyFiring //used by guard to know if it should evaid this
+		{
+			get { return Time.time - timeFired < 1; }
+		}
 
-        //UI gauges(next to staging icon)
-        private ProtoStageIconInfo heatGauge;
+		//used to reduce volume of audio if multiple guns are being fired (needs to be improved/changed)
+		//private int numberOfGuns = 0;
+
+		//UI gauges(next to staging icon)
+		private ProtoStageIconInfo heatGauge;
+		private ProtoStageIconInfo emptyGauge;
+		private ProtoStageIconInfo ammoGauge;
 
 		//AI will fire gun if target is within this Cos(angle) of barrel
 		public float maxAutoFireCosAngle = 0.9993908f; //corresponds to ~2 degrees
 
-        //aimer textures
-        Vector3 pointingAtPosition;
-        Vector3 bulletPrediction;
-        Vector3 fixedLeadOffset = Vector3.zero;
-        float targetLeadDistance;
-        
-        //gapless particles
-        List<BDAGaplessParticleEmitter> gaplessEmitters = new List<BDAGaplessParticleEmitter>();
+		//aimer textures
+		Vector3 pointingAtPosition;
+		Vector3 bulletPrediction;
+		Vector3 fixedLeadOffset = Vector3.zero;
+		float targetLeadDistance;
 
-        //muzzleflash emitters
-        List<KSPParticleEmitter> muzzleFlashEmitters;
-        
-        //module references
-        [KSPField] public int turretID = 0;
-        public ModuleTurret turret;
-        MissileFire mf;
+		//gapless particles
+		List<BDAGaplessParticleEmitter> gaplessEmitters = new List<BDAGaplessParticleEmitter>();
 
-        public MissileFire weaponManager
-        {
-            get
-            {
-                if (mf) return mf;
-                List<MissileFire>.Enumerator wm = vessel.FindPartModulesImplementing<MissileFire>().GetEnumerator();
-                while (wm.MoveNext())
-                {
-                    if (wm.Current == null) continue;
-                    mf = wm.Current;
-                    break;
-                }
-                wm.Dispose();
-                return mf;
-            }
-        }
+		//muzzleflash emitters
+		List<KSPParticleEmitter> muzzleFlashEmitters;
 
-        LineRenderer[] laserRenderers;
+		//module references
+		[KSPField] public int turretID = 0;
+		public ModuleTurret turret;
+		Vector3 trajectoryOffset = Vector3.zero;
+		MissileFire mf;
 
-        bool pointingAtSelf; //true if weapon is pointing at own vessel
-        bool userFiring;
-        Vector3 laserPoint;
-        public bool slaved;
+		public MissileFire weaponManager
+		{
+			get
+			{
+				if (mf) return mf;
+				List<MissileFire>.Enumerator wm = vessel.FindPartModulesImplementing<MissileFire>().GetEnumerator();
+				while (wm.MoveNext())
+				{
+					if (wm.Current == null) continue;
+					mf = wm.Current;
+					break;
+				}
+				wm.Dispose();
+				return mf;
+			}
+		}
 
-        public Transform turretBaseTransform
-        {
-            get
-            {
-                if (turret)
-                {
-                    return turret.yawTransform.parent;
-                }
-                else
-                {
-                    return fireTransforms[0];
-                }
-            }
-        }
+		LineRenderer[] laserRenderers;
 
-        public float maxPitch
-        {
-            get { return turret ? turret.maxPitch : 0; }
-        }
+		public bool pointingAtSelf; //true if weapon is pointing at own vessel
+		bool userFiring;
+		Vector3 laserPoint;
+		public bool slaved;
 
-        public float minPitch
-        {
-            get { return turret ? turret.minPitch : 0; }
-        }
+		public Transform turretBaseTransform
+		{
+			get
+			{
+				if (turret)
+				{
+					return turret.yawTransform.parent;
+				}
+				else
+				{
+					return fireTransforms[0];
+				}
+			}
+		}
 
-        public float yawRange
-        {
-            get { return turret ? turret.yawRange : 0; }
-        }
+		public float maxPitch
+		{
+			get { return turret ? turret.maxPitch : 0; }
+		}
 
-        //weapon interface
-        public WeaponClasses GetWeaponClass()
-        {
-            return WeaponClasses.Gun;
-        }
+		public float minPitch
+		{
+			get { return turret ? turret.minPitch : 0; }
+		}
+
+		public float yawRange
+		{
+			get { return turret ? turret.yawRange : 0; }
+		}
+
+		//weapon interface
+		public WeaponClasses GetWeaponClass()
+		{
+			if (eWeaponType == WeaponTypes.Ballistic)
+			{
+				return WeaponClasses.Gun;
+			}
+			else if (eWeaponType == WeaponTypes.Rocket)
+			{
+				return WeaponClasses.Rocket;
+			}
+			else
+			{
+				return WeaponClasses.DefenseLaser;
+			}
+		}
 
 		public Part GetPart()
-        {
-            return part;
-        }
+		{
+			return part;
+		}
 
-        public string GetSubLabel()
-        {
-            return string.Empty;
-        }
+		public string GetSubLabel()
+		{
+			return string.Empty;
+		}
 
-        public string GetMissileType()
-        {
-            return string.Empty;
-        }
+		public string GetMissileType()
+		{
+			return string.Empty;
+		}
 
-        #if DEBUG
-        Vector3 relVelAdj;
-        Vector3 accAdj;
-        Vector3 gravAdj;
-        #endif
+#if DEBUG
+		Vector3 relVelAdj;
+		Vector3 accAdj;
+		Vector3 gravAdj;
+#endif
 
-        #endregion
+		#endregion
 
-        #region KSPFields
+		#region KSPFields
 
 		[KSPField(isPersistant = true, guiActive = true, guiName = "Weapon Name ", guiActiveEditor = true), UI_Label(affectSymCounterparts = UI_Scene.All, scene = UI_Scene.All)]
 		public string WeaponName;
 
 		[KSPField]
-        public string fireTransformName = "fireTransform";
-        public Transform[] fireTransforms;
+		public string fireTransformName = "fireTransform";
+		public Transform[] fireTransforms;
 
-        [KSPField]
-        public string shellEjectTransformName = "shellEject";
-        public Transform[] shellEjectTransforms;
+		[KSPField]
+		public string shellEjectTransformName = "shellEject";
+		public Transform[] shellEjectTransforms;
 
-        [KSPField]
-        public bool hasDeployAnim = false;
-        [KSPField]
-        public string deployAnimName = "deployAnim";
-        AnimationState deployState;
-        [KSPField]
-        public bool hasFireAnimation = false;
-        [KSPField]
-        public string fireAnimName = "fireAnim";
-        private AnimationState fireState;
-        [KSPField]
-        public bool spinDownAnimation = false;
-        private bool spinningDown;
+		[KSPField]
+		public bool hasDeployAnim = false;
+		[KSPField]
+		public string deployAnimName = "deployAnim";
+		AnimationState deployState;
+		[KSPField]
+		public bool hasFireAnimation = false;
+		[KSPField]
+		public string fireAnimName = "fireAnim";
+		private AnimationState fireState;
+		[KSPField]
+		public bool spinDownAnimation = false;
+		private bool spinningDown;
 
-        //weapon specifications
-        [KSPField]
-        public float maxTargetingRange = 2000; //max range for raycasting and sighting
-        [KSPField]
-        public float roundsPerMinute = 850; //rate of fire
-        [KSPField]
-        public float maxDeviation = 1; //inaccuracy two standard deviations in degrees (two because backwards compatibility :)
-        [KSPField]
-        public float maxEffectiveDistance = 2500; //used by AI to select appropriate weapon
-        [KSPField]
-        public float bulletMass = 0.3880f; //mass in KG - used for damage and recoil and drag
-        [KSPField]
-        public float caliber = 30; //caliber in mm, used for penetration calcs
-        [KSPField]
-        public float bulletDmgMult = 1; //Used for heat damage modifier for non-explosive bullets
-        [KSPField]
-        public float bulletVelocity = 1030; //velocity in meters/second
-        [KSPField]
-        public float ECPerShot = 0; //EC to use per shot for weapons like railguns
+		//weapon specifications
+		[KSPField]
+		public float maxTargetingRange = 2000; //max range for raycasting and sighting
+		[KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Rate of Fire"),
+			UI_FloatRange(minValue = 100f, maxValue = 1500, stepIncrement = 25f, scene = UI_Scene.Editor, affectSymCounterparts = UI_Scene.All)]
+		public float roundsPerMinute = 850; //move RoF slider to editor for rockets
+		[KSPField]
+		public float maxDeviation = 1; //inaccuracy two standard deviations in degrees (two because backwards compatibility :)
+		[KSPField]
+		public float maxEffectiveDistance = 2500; //used by AI to select appropriate weapon
+		[KSPField]
+		public float bulletMass = 0.3880f; //mass in KG - used for damage and recoil and drag
+		[KSPField]
+		public float caliber = 30; //caliber in mm, used for penetration calcs
+		[KSPField]
+		public float bulletDmgMult = 1; //Used for heat damage modifier for non-explosive bullets
+		[KSPField]
+		public float bulletVelocity = 1030; //velocity in meters/second
+		[KSPField]
+		public float ECPerShot = 0; //EC to use per shot for weapons like railguns
 
-        [KSPField]
-        public string bulletDragTypeName = "AnalyticEstimate";
-        public BulletDragTypes bulletDragType;
+		[KSPField]
+		public string bulletDragTypeName = "AnalyticEstimate";
+		public BulletDragTypes bulletDragType;
 
-        //drag area of the bullet in m^2; equal to Cd * A with A being the frontal area of the bullet; as a first approximation, take Cd to be 0.3
-        //bullet mass / bullet drag area.  Used in analytic estimate to speed up code
-        [KSPField]
-        public float bulletDragArea = 1.209675e-5f;
+		//drag area of the bullet in m^2; equal to Cd * A with A being the frontal area of the bullet; as a first approximation, take Cd to be 0.3
+		//bullet mass / bullet drag area.  Used in analytic estimate to speed up code
+		[KSPField]
+		public float bulletDragArea = 1.209675e-5f;
 
-        private BulletInfo bulletInfo;
+		private BulletInfo bulletInfo;
 
-        [KSPField]
-        public string bulletType = "def";
+		[KSPField]
+		public string bulletType = "def";
 
-        [KSPField]
-        public string ammoName = "50CalAmmo"; //resource usage
-        [KSPField]
-        public float requestResourceAmount = 1; //amount of resource/ammo to deplete per shot
-        [KSPField]
-        public float shellScale = 0.66f; //scale of shell to eject
-        [KSPField]
-        public bool hasRecoil = true;
-        [KSPField]
-        public float recoilReduction = 1; //for reducing recoil on large guns with built in compensation
+		[KSPField]
+		public string ammoName = "50CalAmmo"; //resource usage
+		[KSPField]
+		public float requestResourceAmount = 1; //amount of resource/ammo to deplete per shot
+		[KSPField]
+		public float shellScale = 0.66f; //scale of shell to eject
+		[KSPField]
+		public bool hasRecoil = true;
+		[KSPField]
+		public float recoilReduction = 1; //for reducing recoil on large guns with built in compensation
 
-        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Fire Limits"),
-         UI_Toggle(disabledText = "None", enabledText = "In range")]
-        public bool onlyFireInRange = true;
-        //prevent firing when gun's turret is trying to exceed gimbal limits
+		[KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Fire Limits"),
+		 UI_Toggle(disabledText = "None", enabledText = "In range")]
+		public bool onlyFireInRange = true;
+		//prevent firing when gun's turret is trying to exceed gimbal limits
 
-        [KSPField]
-        public bool bulletDrop = true; //projectiles are affected by gravity
+		[KSPField]
+		public bool bulletDrop = true; //projectiles are affected by gravity
 
-        [KSPField]
-        public string weaponType = "ballistic";
-        //ballistic, cannon or laser
+		[KSPField]
+		public string weaponType = "ballistic";
+		//ballistic, cannon or laser
 
-        [KSPField]
-        public float laserDamage = 10000; //base damage/second of lasers
+		[KSPField]
+		public float laserDamage = 10000; //base damage/second of lasers
 
-        //cannon shell specfications
         //TODO: deprectated, moved to bullet config
         [KSPField]
         public float cannonShellRadius = 30; //max radius of explosion forces/damage
@@ -306,9 +323,22 @@ namespace BDArmory.Modules
         [KSPField]
         public float cannonShellHeat = -1; //if non-negative, heat damage
 
+		//Rocket info; 
+		[KSPField(isPersistant = false)] public string rocketType;
+		[KSPField(isPersistant = false)] public string rocketModelPath;
+		[KSPField(isPersistant = false)] public float rocketMass;
+		[KSPField(isPersistant = false)] public float thrust;
+		[KSPField(isPersistant = false)] public float thrustTime;
+		[KSPField(isPersistant = false)] public float blastRadius;
+		[KSPField(isPersistant = false)] public float blastForce;
+		[KSPField] public float blastHeat = -1;
+		[KSPField(isPersistant = false)] public bool descendingOrder = true;
+		[KSPField] public float thrustDeviation = 0.10f;
+		[KSPField] public bool externalAmmo = false; //used for rocketlaunchers drawing from ammoboxes instead of internals
+		Transform[] rockets;
 
-        //projectile graphics
-        [KSPField]
+		//projectile graphics
+		[KSPField]
         public string projectileColor = "255, 130, 0, 255"; //final color of projectile
         Color projectileColorC;
         [KSPField]
@@ -339,8 +369,9 @@ namespace BDArmory.Modules
         int tracerIntervalCounter;
         [KSPField]
         public string bulletTexturePath = "BDArmory/Textures/bullet";
-
-        [KSPField]
+		[KSPField]
+		public string laserTexturePath = "BDArmory/Textures/laser";
+		[KSPField]
         public bool oneShotWorldParticles = false;
 
         //heat
@@ -400,23 +431,25 @@ namespace BDArmory.Modules
         [KSPField]
         public bool proximityDetonation = false;
 
-        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Default Detonation Range"),
-         UI_FloatRange(minValue = 500, maxValue = 8000f, stepIncrement = 5f, scene = UI_Scene.All)]
-        public float defaultDetonationRange = 3500;
+		[KSPField(isPersistant = true, guiActive = true, guiName = "Fuzed Detonation Range ", guiActiveEditor = false)]
+		public float defaultDetonationRange = 3500;
 
-        [KSPField]
-        public float maxAirDetonationRange = 3500;
-        float detonationRange = 10f;
-        [KSPField]
-        public bool airDetonationTiming = true;
+		[KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Proximity Fuze Radius"), UI_FloatRange(minValue = 0f, maxValue = 100f, stepIncrement = 1f, scene = UI_Scene.Editor, affectSymCounterparts = UI_Scene.All)]
+		public float detonationRange = 5;
 
-        //auto proximity tracking
-        [KSPField]
+		[KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Max Detonation Range"),
+		 UI_FloatRange(minValue = 500, maxValue = 8000f, stepIncrement = 5f, scene = UI_Scene.All)]
+		public float maxAirDetonationRange = 3500;
+		[KSPField]
+		public bool airDetonationTiming = true;
+
+		//auto proximity tracking
+		[KSPField]
         public float autoProxyTrackRange = 0;
         bool atprAcquired;
         int aptrTicker;
 
-        float timeFired;
+        public float timeFired;
         public float initialFireDelay = 0; //used to ripple fire multiple weapons of this type
 
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Barrage")]
@@ -494,8 +527,19 @@ namespace BDArmory.Modules
         {
             StartCoroutine(FireHoldRoutine(param.group));
         }
+		[KSPEvent(guiActive = true, guiName = "Jettison", active = true, guiActiveEditor = false)]
+		public void Jettison()
+		{
+			if (turret || eWeaponType != WeaponTypes.Rocket)
+			{
+				return;
+			}
 
-        IEnumerator FireHoldRoutine(KSPActionGroup group)
+			part.decouple(0);
+			if (BDArmorySetup.Instance.ActiveWeaponManager != null)
+				BDArmorySetup.Instance.ActiveWeaponManager.UpdateList();
+		}
+		IEnumerator FireHoldRoutine(KSPActionGroup group)
         {
             KeyBinding key = Misc.Misc.AGEnumToKeybinding(group);
             if (key == null)
@@ -559,17 +603,29 @@ namespace BDArmory.Modules
                 Events["ToggleRipple"].guiActiveEditor = false;
                 Fields["useRippleFire"].guiActiveEditor = false;
             }
+			if (eWeaponType != WeaponTypes.Rocket)
+			{
+				Fields["roundsPerMinute"].guiActiveEditor = false;
+			}
+
             vessel.Velocity();
-            if (airDetonation)
-            {
-                UI_FloatRange detRange = (UI_FloatRange)Fields["defaultDetonationRange"].uiControlEditor;
-                detRange.maxValue = maxAirDetonationRange;
-            }
-            else
-            {
-                Fields["defaultDetonationRange"].guiActive = false;
-                Fields["defaultDetonationRange"].guiActiveEditor = false;
-            }
+			if (airDetonation)
+			{
+				UI_FloatRange detRange = (UI_FloatRange)Fields["maxAirDetonationRange"].uiControlEditor;
+				detRange.maxValue = maxEffectiveDistance;
+			}
+			else
+			{
+				Fields["maxAirDetonationRange"].guiActive = false;
+				Fields["maxAirDetonationRange"].guiActiveEditor = false;
+				Fields["defaultDetonationRange"].guiActive = false;
+				Fields["defaultDetonationRange"].guiActiveEditor = false;
+			}
+			if (!proximityDetonation)
+			{
+				Fields["detonationRange"].guiActive = false;
+				Fields["detonationRange"].guiActiveEditor = false;
+			}
 			muzzleFlashEmitters = new List<KSPParticleEmitter>();
             IEnumerator<Transform> mtf = part.FindModelTransforms("muzzleTransform").AsEnumerable().GetEnumerator();
             while (mtf.MoveNext())
@@ -581,71 +637,96 @@ namespace BDArmory.Modules
                 kpe.emit = false;
             }
             mtf.Dispose();
+			if (HighLogic.LoadedSceneIsFlight)
+			{
+				//setup transforms
+				fireTransforms = part.FindModelTransforms(fireTransformName);
+				shellEjectTransforms = part.FindModelTransforms(shellEjectTransformName);
 
-            if (HighLogic.LoadedSceneIsFlight)
-            {
-                if (eWeaponType != WeaponTypes.Laser)
-                {
-                    if (bulletPool == null)
-                    {
-                        SetupBulletPool();
-                    }
-                    if (shellPool == null)
-                    {
-                        SetupShellPool();
-                    }
-                }
+				if (eWeaponType == WeaponTypes.Ballistic)
+				{
 
-                //setup transforms
-                fireTransforms = part.FindModelTransforms(fireTransformName);
-                shellEjectTransforms = part.FindModelTransforms(shellEjectTransformName);
+					if (bulletPool == null)
+					{
+						SetupBulletPool();
+					}
+					if (shellPool == null)
+					{
+						SetupShellPool();
+					}
+				}
+				if (eWeaponType == WeaponTypes.Rocket && !externalAmmo)// only call these for rocket pods
+				{
+					MakeRocketArray();
+					UpdateRocketScales();
+				}
+				//setup emitters
+				IEnumerator<KSPParticleEmitter> pe = part.FindModelComponents<KSPParticleEmitter>().AsEnumerable().GetEnumerator();
+				while (pe.MoveNext())
+				{
+					if (pe.Current == null) continue;
+					pe.Current.maxSize *= part.rescaleFactor;
+					pe.Current.minSize *= part.rescaleFactor;
+					pe.Current.shape3D *= part.rescaleFactor;
+					pe.Current.shape2D *= part.rescaleFactor;
+					pe.Current.shape1D *= part.rescaleFactor;
 
-                //setup emitters
-                IEnumerator<KSPParticleEmitter> pe = part.FindModelComponents<KSPParticleEmitter>().AsEnumerable().GetEnumerator();
-                while (pe.MoveNext())
-                {
-                    if (pe.Current == null) continue;
-                    pe.Current.maxSize *= part.rescaleFactor;
-                    pe.Current.minSize *= part.rescaleFactor;
-                    pe.Current.shape3D *= part.rescaleFactor;
-                    pe.Current.shape2D *= part.rescaleFactor;
-                    pe.Current.shape1D *= part.rescaleFactor;
+					if (pe.Current.useWorldSpace && !oneShotWorldParticles)
+					{
+						BDAGaplessParticleEmitter gpe = pe.Current.gameObject.AddComponent<BDAGaplessParticleEmitter>();
+						gpe.part = part;
+						gaplessEmitters.Add(gpe);
+					}
+					else
+					{
+						EffectBehaviour.AddParticleEmitter(pe.Current);
+					}
+				}
+				pe.Dispose();
 
-                    if (pe.Current.useWorldSpace && !oneShotWorldParticles)
-                    {
-                        BDAGaplessParticleEmitter gpe = pe.Current.gameObject.AddComponent<BDAGaplessParticleEmitter>();
-                        gpe.part = part;
-                        gaplessEmitters.Add(gpe);
-                    }
-                    else
-                    {
-                        EffectBehaviour.AddParticleEmitter(pe.Current);
-                    }
-                }
-                pe.Dispose();
+				//setup projectile colors
+				projectileColorC = Misc.Misc.ParseColor255(projectileColor);
+				startColorC = Misc.Misc.ParseColor255(startColor);
 
-                //setup projectile colors
-                projectileColorC = Misc.Misc.ParseColor255(projectileColor);
-                startColorC = Misc.Misc.ParseColor255(startColor);
+				//init and zero points
+				targetPosition = Vector3.zero;
+				pointingAtPosition = Vector3.zero;
+				bulletPrediction = Vector3.zero;
 
-                //init and zero points
-                targetPosition = Vector3.zero;
-                pointingAtPosition = Vector3.zero;
-                bulletPrediction = Vector3.zero;
+				//setup audio
+				SetupAudio();
 
-                //setup audio
-                SetupAudio();
-
-                //laser setup
-                if (eWeaponType == WeaponTypes.Laser)
-                {
-                    SetupLaserSpecifics();
-                }
-            }
-            else if (HighLogic.LoadedSceneIsEditor)
-            {
-                fireTransforms = part.FindModelTransforms(fireTransformName);
-   				WeaponNameWindow.OnActionGroupEditorOpened.Add(OnActionGroupEditorOpened);
+				//laser setup
+				if (eWeaponType == WeaponTypes.Laser)
+				{
+					SetupLaserSpecifics();
+				}
+				//ammo gauge setup
+				List<Part>.Enumerator p = vessel.parts.GetEnumerator(); //Moved to OnStart, only needs to proc once
+				while (p.MoveNext())
+				{
+					if (p.Current == null) continue;
+					IEnumerator<PartResource> resource = p.Current.Resources.GetEnumerator();
+					while (resource.MoveNext())
+					{
+						if (resource.Current == null) continue;
+						{
+							if (resource.Current.resourceName != ammoName) continue; //doesn't return ElectricCharge for the ABL, but does return resource amoutns for lasers using custom resources.
+							{
+								ammoAmount = (float)resource.Current.amount;
+								ammoMax = (float)resource.Current.maxAmount;
+							}
+						}
+					}
+					resource.Dispose();
+				}
+				p.Dispose();
+				//mf.AmmoController();
+			}
+			else if (HighLogic.LoadedSceneIsEditor)
+			{
+				fireTransforms = part.FindModelTransforms(fireTransformName);
+				WeaponNameWindow.OnActionGroupEditorOpened.Add(OnActionGroupEditorOpened);
 				WeaponNameWindow.OnActionGroupEditorClosed.Add(OnActionGroupEditorClosed);
 			}
 			//turret setup
@@ -655,20 +736,31 @@ namespace BDArmory.Modules
                 if (turr.Current == null) continue;
                 if (turr.Current.turretID != turretID) continue;
                 turret = turr.Current;
-                turret.SetReferenceTransform(fireTransforms[0]);
+				turret.SetReferenceTransform(fireTransforms[0]);
                 break;
             }
             turr.Dispose();
 
-            if (!turret)
+			if (!turret)
             {
                 Fields["onlyFireInRange"].guiActive = false;
                 Fields["onlyFireInRange"].guiActiveEditor = false;
             }
+			if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
+				{
+				if (turret || eWeaponType != WeaponTypes.Rocket)
+				{
+					Events["Jettison"].guiActive = false;
+				}
+			}
 
+			//setup animations
 
-            //setup animations
-            if (hasDeployAnim)
+			if (!string.IsNullOrEmpty(deployAnimName) && eWeaponType == WeaponTypes.Rocket) // hack to grab the hasAnim bool for legacy RL's converted via MM
+			{
+				hasDeployAnim = true;
+			}
+			if (hasDeployAnim)
             {
                 deployState = Misc.Misc.SetUpSingleAnimation(deployAnimName, part);
                 deployState.normalizedTime = 0;
@@ -706,7 +798,11 @@ namespace BDArmory.Modules
             {
                 part.stagingIconAlwaysShown = true;
                 this.part.stackIconGrouping = StackIconGrouping.SAME_TYPE;
-            }
+				ammoGauge = null;
+				emptyGauge = null;
+				heatGauge = null;
+				reloadBar = null;
+			}
         }
 
         void OnDestroy()
@@ -717,20 +813,52 @@ namespace BDArmory.Modules
 		}
 		void Update()
         {
+			float updateList = 0;
+			if (HighLogic.LoadedSceneIsFlight && !vessel.packed && vessel.isCommandable)
+			{
+				if (vessel.isActiveVessel)// lets not have to re-initialize and redraw all gauges and ammo counts every tick. Seriously, what was I thinking?
+				{
+					if (showReloadMeter)
+					{
+						UpdateReloadMeter();
+					}
+					else
+					{
+						UpdateHeatMeter();
+					}
+					UpdateAmmo();
+					if (!isOutofAmmo && ammoGauge == null) //only redraw these if nulled from vessel switch
+					{
+						UpdateAmmoMeter();
+					}
+					if (isOutofAmmo && emptyGauge == null)
+					{
+						UpdateEmptyAlert();
+					}
+					updateList -= Time.fixedDeltaTime;
+					if (updateList < 0)
+					{
+						UpdateAmmoMeter(); //call once a second to check for infinite ammo toggle, sanity check, etc
+						UpdateEmptyAlert();
+						updateList = 1.0f;
+					}
+				}
+				UpdateHeat();
+			}
+		
             if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && !vessel.packed && vessel.IsControllable)
             {
-                if (lowpassFilter)
-                {
-                    if (InternalCamera.Instance && InternalCamera.Instance.isActive)
-                    {
-                        lowpassFilter.enabled = true;
-                    }
-                    else
-                    {
-                        lowpassFilter.enabled = false;
-                    }
-                }
-
+				if (lowpassFilter)
+				{
+					if (InternalCamera.Instance && InternalCamera.Instance.isActive)
+					{
+						lowpassFilter.enabled = true;
+					}
+					else
+					{
+						lowpassFilter.enabled = false;
+					}
+				}
                 if (weaponState == WeaponStates.Enabled &&
                     (TimeWarp.WarpMode != TimeWarp.Modes.HIGH || TimeWarp.CurrentRate == 1))
                 {
@@ -746,7 +874,7 @@ namespace BDArmory.Modules
                             StartCoroutine(IncrementRippleIndex(0));
                             finalFire = false;
                         }
-                        else if (eWeaponType == WeaponTypes.Ballistic || eWeaponType == WeaponTypes.Cannon) //WeaponTypes.Cannon is deprecated
+                        else if (eWeaponType == WeaponTypes.Ballistic || eWeaponType == WeaponTypes.Rocket) 
                         {
                             finalFire = true;
                         }
@@ -778,7 +906,7 @@ namespace BDArmory.Modules
             }
         }
 
-        void FixedUpdate()
+		void FixedUpdate()
         {
 			if (HighLogic.LoadedSceneIsFlight && !vessel.packed)
             {
@@ -790,23 +918,7 @@ namespace BDArmory.Modules
                     }
                     return;
                 }
-
-
-                if (vessel.isActiveVessel)
-                {
-                    if (showReloadMeter)
-                    {
-                        UpdateReloadMeter();
-                    }
-                    else
-                    {
-                        UpdateHeatMeter();
-                    }
-                }
-             
-                
-                UpdateHeat();
-                if (weaponState == WeaponStates.Enabled &&
+				if (weaponState == WeaponStates.Enabled &&
                     (TimeWarp.WarpMode != TimeWarp.Modes.HIGH || TimeWarp.CurrentRate == 1))
                 {
                     //Aim();
@@ -902,8 +1014,8 @@ namespace BDArmory.Modules
                     }
                     else
                     {
-                        reticlePosition = bulletPrediction;
-                    }
+						reticlePosition = bulletPrediction;
+					}
                 }
                 else
                 {
@@ -926,9 +1038,9 @@ namespace BDArmory.Modules
                 {
                     if (targetAcquired)
                     {
-                        BDGUIUtils.DrawLineBetweenWorldPositions(fireTransforms[0].position, targetPosition, 2,
-                            Color.blue);
-                    }
+						BDGUIUtils.DrawLineBetweenWorldPositions(fireTransforms[0].position, targetPosition, 2,
+							Color.blue);
+					}
                 }
             }
 
@@ -954,10 +1066,9 @@ namespace BDArmory.Modules
             }
             #endif
         }
-
-        #endregion
-
-        #region Fire
+	#endregion
+       //new regions sorting/organizing gun, laser, and rocket code into their own sections for ease of maintainence
+	#region Gun Fire 
 
         private void Fire()
         {
@@ -1132,11 +1243,13 @@ namespace BDArmory.Modules
                         pBullet.startColor = startColorC;
                         pBullet.fadeColor = fadeColor;
                         tracerIntervalCounter++;
+			pBullet.tracerLuminance = tracerLuminance;
                         if (tracerIntervalCounter > tracerInterval)
                         {
                             tracerIntervalCounter = 0;
                             pBullet.tracerStartWidth = tracerStartWidth;
                             pBullet.tracerEndWidth = tracerEndWidth;
+			    pBullet.tracerLength = tracerLength;
                         }
                         else
                         {
@@ -1144,13 +1257,13 @@ namespace BDArmory.Modules
                             pBullet.tracerEndWidth = nonTracerWidth;
                             pBullet.startColor.a *= 0.5f;
                             pBullet.projectileColor.a *= 0.5f;
+                            pBullet.tracerLength = 1;   
+			    pBullet.tracerLuminance *= 0.25f;
                         }
-                        pBullet.tracerLength = tracerLength;
                         pBullet.tracerDeltaFactor = tracerDeltaFactor;
-                        pBullet.tracerLuminance = tracerLuminance;
                         pBullet.bulletDrop = bulletDrop;
 
-                        if ((eWeaponType == WeaponTypes.Ballistic && bulletInfo.explosive) || eWeaponType == WeaponTypes.Cannon) //WeaponTypes.Cannon is deprecated
+                        if (eWeaponType == WeaponTypes.Ballistic && bulletInfo.explosive) //WeaponTypes.Cannon is deprecated
                         {
                             if (bulletType == "def")
                             {
@@ -1237,8 +1350,34 @@ namespace BDArmory.Modules
                 spinningDown = true;
             }
         }
+	bool CanFire()
+	{
+		if (ECPerShot != 0)
+		{
+			double chargeAvailable = part.RequestResource("ElectricCharge", ECPerShot, ResourceFlowMode.ALL_VESSEL);
+			if (chargeAvailable < ECPerShot * 0.95f)
+			{
+				ScreenMessages.PostScreenMessage("Weapon Requires EC", 5.0f, ScreenMessageStyle.UPPER_CENTER);
+				return false;
+			}
+		}
+		if ((BDArmorySettings.INFINITE_AMMO || part.RequestResource(ammoName, requestResourceAmount) > 0))
+		{
+			return true;
+		}
+		return false;
+	}
+	void DrainECPerShot()
+	{
+		if (ECPerShot == 0) return;
+		//double drainAmount = ECPerShot * TimeWarp.fixedDeltaTime;
+		double drainAmount = ECPerShot;
+		double chargeAvailable = part.RequestResource("ElectricCharge", drainAmount, ResourceFlowMode.ALL_VESSEL);
+	}
+	#endregion
 
-        private bool FireLaser()
+	#region Laser Fire
+	private bool FireLaser()
         {
             float maxDistance = BDArmorySettings.PHYSICS_RANGE;
             if (BDArmorySettings.PHYSICS_RANGE == 0)
@@ -1246,7 +1385,7 @@ namespace BDArmory.Modules
 
             float chargeAmount = requestResourceAmount * TimeWarp.fixedDeltaTime;
 
-            if (!pointingAtSelf && !Misc.Misc.CheckMouseIsOnGui() && WMgrAuthorized() && !isOverheated &&
+			if (!pointingAtSelf && !Misc.Misc.CheckMouseIsOnGui() && WMgrAuthorized() && !isOverheated &&
                 (part.RequestResource(ammoName, chargeAmount) >= chargeAmount || BDArmorySettings.INFINITE_AMMO))
             {
                 if (!audioSource.isPlaying)
@@ -1255,7 +1394,9 @@ namespace BDArmory.Modules
                     audioSource.Play();
                     audioSource.loop = true;
                 }
-                for (int i = 0; i < fireTransforms.Length; i++)
+				//for (float iTime = Mathf.Min(Time.time - timeFired - timeGap, TimeWarp.fixedDeltaTime); iTime >= 0; iTime -= timeGap)
+				//timeFired = Time.time - iTime;
+				for (int i = 0; i < fireTransforms.Length; i++)
                 {
                     Transform tf = fireTransforms[i];
 
@@ -1277,9 +1418,8 @@ namespace BDArmory.Modules
                     Ray ray = new Ray(tf.position, rayDirection);
                     lr.useWorldSpace = false;
                     lr.SetPosition(0, Vector3.zero);
-                    RaycastHit hit;                    
-                    
-                    if (Physics.Raycast(ray, out hit, maxDistance, 9076737))
+                    RaycastHit hit;
+					if (Physics.Raycast(ray, out hit, maxDistance, 9076737))
                     {
                         lr.useWorldSpace = true;
                         laserPoint = hit.point + targetVelocity * Time.fixedDeltaTime;
@@ -1314,7 +1454,7 @@ namespace BDArmory.Modules
                         lr.SetPosition(1, laserPoint);
                     }
                 }
-                heat += heatPerShot * TimeWarp.CurrentRate;
+				heat += heatPerShot * TimeWarp.CurrentRate;
                 return true;
             }
             else
@@ -1323,7 +1463,7 @@ namespace BDArmory.Modules
             }
         }
 
-        void SetupLaserSpecifics()
+	void SetupLaserSpecifics()
         {
             chargeSound = GameDatabase.Instance.GetAudioClip(chargeSoundPath);
             if (HighLogic.LoadedSceneIsFlight)
@@ -1341,7 +1481,7 @@ namespace BDArmory.Modules
                 laserColor.a = laserColor.a / 2;
                 laserRenderers[i].material = new Material(Shader.Find("KSP/Particles/Alpha Blended"));
                 laserRenderers[i].material.SetColor("_TintColor", laserColor);
-                laserRenderers[i].material.mainTexture = GameDatabase.Instance.GetTexture("BDArmory/Textures/laser", false);
+                laserRenderers[i].material.mainTexture = GameDatabase.Instance.GetTexture(laserTexturePath, false);
                 laserRenderers[i].shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; //= false;
                 laserRenderers[i].receiveShadows = false;
                 laserRenderers[i].startWidth = tracerStartWidth;
@@ -1353,57 +1493,134 @@ namespace BDArmory.Modules
                 laserRenderers[i].enabled = false;
             }
         }
+	#endregion
 
-        bool WMgrAuthorized()
-        {
-            MissileFire manager = BDArmorySetup.Instance.ActiveWeaponManager;
-            if (manager != null && manager.vessel == vessel)
-            {
-                if (manager.hasSingleFired) return false;
-                else return true;
-            }
-            else
-            {
-                return true;
-            }
-        }
+	#region Rocket Fire
+	// this is the extent of RocketLauncher code that differs from ModuleWeapon
+	public void FireRocket()
+	{
+		int rocketsLeft = (int)Math.Floor(ammoAmount);
+		if (BDArmorySettings.INFINITE_AMMO && rocketsLeft < 1)
+		{
+			rocketsLeft = 1;
+		}
+		float timeGap = (60 / roundsPerMinute) * TimeWarp.CurrentRate;
+		if (Time.time - timeFired > timeGap && !pointingAtSelf && (aiControlled || !Misc.Misc.CheckMouseIsOnGui()) && WMgrAuthorized())
+		{// fixes rocket ripple code for proper rippling
+			for (float iTime = Mathf.Min(Time.time - timeFired - timeGap, TimeWarp.fixedDeltaTime); iTime >= 0; iTime -= timeGap)
+			{
+				if (rocketsLeft >= 1 && !externalAmmo)
+				{
+					Transform currentRocketTfm = rockets[rocketsLeft - 1];
+					GameObject rocketObj = GameDatabase.Instance.GetModel(rocketModelPath);
+					rocketObj = (GameObject)Instantiate(rocketObj, currentRocketTfm.position, currentRocketTfm.parent.rotation);
+					rocketObj.transform.rotation = currentRocketTfm.parent.rotation;
+					rocketObj.transform.localScale = part.rescaleFactor * Vector3.one;
+					currentRocketTfm.localScale = Vector3.zero;
+					Rocket rocket = rocketObj.AddComponent<Rocket>();
+					rocket.explModelPath = explModelPath;
+					rocket.explSoundPath = explSoundPath;
+					rocket.spawnTransform = currentRocketTfm;
+					rocket.mass = rocketMass;
+					rocket.blastForce = blastForce;
+					rocket.blastHeat = blastHeat;
+					rocket.blastRadius = blastRadius;
+					rocket.thrust = thrust;
+					rocket.thrustTime = thrustTime;
+					rocket.proximityDetonation = proximityDetonation;
+					rocket.detonationRange = detonationRange;
+					rocket.randomThrustDeviation = thrustDeviation;
+					rocket.sourceVessel = vessel;
+					rocketObj.SetActive(true);
+					rocketObj.transform.SetParent(currentRocketTfm.parent);
+					rocket.parentRB = part.rb;
 
-        void CheckWeaponSafety()
-        {
-            pointingAtSelf = false;
-            for (int i = 0; i < fireTransforms.Length; i++)
-            {
-                Ray ray = new Ray(fireTransforms[i].position, fireTransforms[i].forward);
-                RaycastHit hit;
-
-                if (Physics.Raycast(ray, out hit, maxTargetingRange, 9076737))
-                {
-                    KerbalEVA eva = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
-                    Part p = eva ? eva.part : hit.collider.gameObject.GetComponentInParent<Part>();
-                    if (p && p.vessel && p.vessel == vessel)
-                    {
-                        pointingAtSelf = true;
-                        break;
-                    }
-                }
-                else
-                {
-                    pointingAtSelf = false;
-                }
-
-
-                if (targetAcquired)
-                {
-                    pointingAtPosition = fireTransforms[i].transform.position + (ray.direction * targetLeadDistance);
-                }
-                else
-                {
-                    pointingAtPosition = fireTransforms[i].position + (ray.direction * (maxTargetingRange));
-                }
-            }
-        }
-
-        public void EnableWeapon()
+					GetRocketResource().amount--;
+					UpdateRocketScales();
+					}		
+				else if (rocketsLeft >= 1 && externalAmmo)
+				{
+					for (int i = 0; i < fireTransforms.Length; i++)
+					{
+						Transform currentRocketTfm = fireTransforms[i];
+						GameObject rocketObj = GameDatabase.Instance.GetModel(rocketModelPath);
+						rocketObj = (GameObject)Instantiate(rocketObj, currentRocketTfm.position, currentRocketTfm.rotation);
+						rocketObj.transform.rotation = currentRocketTfm.rotation;
+						rocketObj.transform.localScale = part.rescaleFactor * Vector3.one;
+						currentRocketTfm.localScale = Vector3.zero;
+						Rocket rocket = rocketObj.AddComponent<Rocket>();
+						rocket.explModelPath = explModelPath;
+						rocket.explSoundPath = explSoundPath;
+						rocket.spawnTransform = currentRocketTfm;
+						rocket.mass = rocketMass;
+						rocket.blastForce = blastForce;
+						rocket.blastHeat = blastHeat;
+						rocket.blastRadius = blastRadius;
+						rocket.thrust = thrust;
+						rocket.thrustTime = thrustTime;
+						rocket.proximityDetonation = proximityDetonation;
+						rocket.detonationRange = detonationRange;
+						rocket.randomThrustDeviation = thrustDeviation;
+						rocket.sourceVessel = vessel;
+						rocket.engageRangeMax = engageRangeMax;
+						rocketObj.SetActive(true);
+						rocketObj.transform.SetParent(currentRocketTfm);
+						rocket.parentRB = part.rb;
+						if (!BDArmorySettings.INFINITE_AMMO)
+						{
+							part.RequestResource(ammoName, 1);
+						}
+					}
+				}// add shell casings/heat?			
+				timeFired = Time.time - iTime;
+				audioSource.PlayOneShot(GameDatabase.Instance.GetAudioClip("BDArmory/Sounds/launch")); //change to firesound
+			}
+		}
+		if (useRippleFire)
+		{
+			StartCoroutine(IncrementRippleIndex(initialFireDelay * TimeWarp.CurrentRate));
+		}
+	}
+	void MakeRocketArray()
+	{
+		Transform rocketsTransform = part.FindModelTransform("rockets");// important to keep this seperate from the fireTransformName transform
+		int numOfRockets = rocketsTransform.childCount;		// due to rockets.Rocket_n being inconsistantly aligned 
+		rockets = new Transform[numOfRockets];              // (and subsequently messing up the aim() vestors) 
+																// and this overwriting the previous fireTransFormName -> fireTransForms
+		for (int i = 0; i < numOfRockets; i++)
+		{
+			string rocketName = rocketsTransform.GetChild(i).name;
+			int rocketIndex = int.Parse(rocketName.Substring(7)) - 1;
+			rockets[rocketIndex] = rocketsTransform.GetChild(i);
+		}
+		if (!descendingOrder) Array.Reverse(rockets);
+	}
+	void UpdateRocketScales()
+	{
+		PartResource rocketResource = GetRocketResource();
+		ammoAmount = (float)Math.Floor(rocketResource.amount);
+		ammoMax = (float)rocketResource.maxAmount;
+		for (int i = 0; i < ammoMax; i++)
+		{
+			if (i < ammoAmount) rockets[i].localScale = Vector3.one;
+			else rockets[i].localScale = Vector3.zero;
+		}
+	}
+	public PartResource GetRocketResource()
+	{
+		IEnumerator<PartResource> res = part.Resources.GetEnumerator();
+		while (res.MoveNext())
+		{
+			if (res.Current == null) continue;
+			if (res.Current.resourceName == ammoName) return res.Current;
+		}
+		res.Dispose();
+		return null;
+	}
+	#endregion
+	//more code organization
+	#region Weapon Setup
+	public void EnableWeapon()
         {
             if (weaponState == WeaponStates.Enabled || weaponState == WeaponStates.PoweringUp)
             {
@@ -1437,10 +1654,10 @@ namespace BDArmory.Modules
                     eWeaponType = WeaponTypes.Ballistic;
                     break;
 
-                case "cannon":
+                case "rocket":
                     // Note:  this type is deprecated.  behavior is duplicated with Ballistic and bulletInfo.explosive = true
                     // Type remains for backward compatability for now.
-                    eWeaponType = WeaponTypes.Cannon;
+                    eWeaponType = WeaponTypes.Rocket;
                     break;
 
                 case "laser":
@@ -1449,37 +1666,8 @@ namespace BDArmory.Modules
             }
         }
 
-        void DrainECPerShot()
-        {
-            if (ECPerShot == 0) return;
-            //double drainAmount = ECPerShot * TimeWarp.fixedDeltaTime;
-            double drainAmount = ECPerShot;
-            double chargeAvailable = part.RequestResource("ElectricCharge", drainAmount, ResourceFlowMode.ALL_VESSEL);
-        }
-
-        bool CanFire()
-        {
-
-            if (ECPerShot != 0)
-            {
-                double chargeAvailable = part.RequestResource("ElectricCharge", ECPerShot, ResourceFlowMode.ALL_VESSEL);
-                if (chargeAvailable < ECPerShot * 0.95f)
-                {
-                    ScreenMessages.PostScreenMessage("Weapon Requires EC", 5.0f, ScreenMessageStyle.UPPER_CENTER);
-                    return false;
-                }
-            }
-
-            if ((BDArmorySettings.INFINITE_AMMO || part.RequestResource(ammoName, requestResourceAmount) > 0))
-            {
-                return true;
-            }
-            
-            return false;
-        }
-
-        #endregion
-
+		#endregion
+		
         #region Audio
 
         void UpdateVolume()
@@ -1542,13 +1730,10 @@ namespace BDArmory.Modules
 
             UpdateVolume();
         }
-             
+	#endregion
 
-        #endregion
-
-        #region Targeting
-
-        void Aim()
+	#region Targeting
+	void Aim()
         {
             //AI control
             if (aiControlled && !slaved)
@@ -1559,7 +1744,6 @@ namespace BDArmory.Modules
                     return;
                 }
             }
-
 
             if (!slaved && !aiControlled && (yawRange > 0 || maxPitch - minPitch > 0))
             {
@@ -1598,7 +1782,6 @@ namespace BDArmory.Modules
                 }
             }
 
-
             //aim assist
             Vector3 finalTarget = targetPosition;
             Vector3 originalTarget = targetPosition;
@@ -1607,19 +1790,25 @@ namespace BDArmory.Modules
 
             if ((BDArmorySettings.AIM_ASSIST || aiControlled) && eWeaponType != WeaponTypes.Laser)
             {
-                float effectiveVelocity = bulletVelocity;
+		float effectiveVelocity = bulletVelocity;
 
-                int iterations = 4;
+		int rocketaccel = 1;
+		int iterations = 4;
                 while (--iterations >= 0)
                 {
-                    float time = targetDistance / effectiveVelocity;
-                    finalTarget = targetPosition;
+			if (eWeaponType == WeaponTypes.Rocket)
+			{
+				rocketaccel++;
+				effectiveVelocity = ((thrust / rocketMass)* rocketaccel);// may need a little more tinkering
+			}
+		float time = targetDistance / effectiveVelocity;
+                finalTarget = targetPosition;
                     
                     if (targetAcquired)
                     {
-                        float time2 = VectorUtils.CalculateLeadTime(finalTarget - fireTransforms[0].position,
-                            relativeVelocity, effectiveVelocity);
-                        if (time2 > 0) time = time2;
+			float time2 = VectorUtils.CalculateLeadTime(finalTarget - fireTransforms[0].position,
+			relativeVelocity, effectiveVelocity);
+			if (time2 > 0) time = time2;
                         finalTarget += relativeVelocity * time;
                         #if DEBUG
                         relVelAdj = relativeVelocity * time;
@@ -1646,14 +1835,15 @@ namespace BDArmory.Modules
                     }
                     else if (vessel.altitude < 6000)
                     {
-                        float time2 = VectorUtils.CalculateLeadTime(finalTarget - fireTransforms[0].position,
-                            -(part.rb.velocity + Krakensbane.GetFrameVelocityV3f()), effectiveVelocity);
+						float time2 = VectorUtils.CalculateLeadTime(finalTarget - fireTransforms[0].position,
+							-(part.rb.velocity + Krakensbane.GetFrameVelocityV3f()), effectiveVelocity);
+
                         if (time2 > 0) time = time2;
                         finalTarget += (-(part.rb.velocity + Krakensbane.GetFrameVelocityV3f()) * time);
                         //this vessel velocity compensation against stationary
                     }
-                    Vector3 up = (VectorUtils.GetUpDirection(finalTarget) + VectorUtils.GetUpDirection(fireTransforms[0].position)).normalized;
-                    if (bulletDrop)
+					Vector3 up = (VectorUtils.GetUpDirection(finalTarget) + VectorUtils.GetUpDirection(fireTransforms[0].position)).normalized;
+					if (bulletDrop || eWeaponType == WeaponTypes.Rocket)
                     {
                         #if DEBUG
                         var vc = finalTarget;
@@ -1661,42 +1851,35 @@ namespace BDArmory.Modules
                         float gAccel = ((float)FlightGlobals.getGeeForceAtPosition(finalTarget).magnitude
                         + (float)FlightGlobals.getGeeForceAtPosition(fireTransforms[0].position).magnitude) / 2;
                         Vector3 intermediateTarget = finalTarget + (0.5f * gAccel * time * time * up); //gravity compensation, -fixedDeltaTime is for fixedUpdate granularity
-
-                        var avGrav = (FlightGlobals.getGeeForceAtPosition(finalTarget) + FlightGlobals.getGeeForceAtPosition(fireTransforms[0].position)) / 2;
-                        effectiveVelocity = bulletVelocity
-                            * (float)Vector3d.Dot((intermediateTarget - fireTransforms[0].position).normalized, (finalTarget - fireTransforms[0].position).normalized);
-                        // effectiveVelocity += (float)Vector3d.Dot(avGrav, (finalTarget - fireTransforms[0].position).normalized) * time * time / 2;
-                        finalTarget = intermediateTarget;
+						var avGrav = (FlightGlobals.getGeeForceAtPosition(finalTarget) + FlightGlobals.getGeeForceAtPosition(fireTransforms[0].position)) / 2;
+							effectiveVelocity = bulletVelocity
+								* (float)Vector3d.Dot((intermediateTarget - fireTransforms[0].position).normalized, (finalTarget - fireTransforms[0].position).normalized);
+						// effectiveVelocity += (float)Vector3d.Dot(avGrav, (finalTarget - fireTransforms[0].position).normalized) * time * time / 2;
+						finalTarget = intermediateTarget;
 
                         #if DEBUG
                         gravAdj = (finalTarget - vc);
                         #endif
                     }
                     else break;
-
                 }
+		targetLeadDistance = Vector3.Distance(finalTarget, fireTransforms[0].position);
+                fixedLeadOffset = originalTarget - finalTarget; //for aiming fixed guns to moving target
 
-                targetLeadDistance = Vector3.Distance(finalTarget, fireTransforms[0].position);
-                fixedLeadOffset = originalTarget - finalTarget; //for aiming fixed guns to moving target	
-
-                //airdetonation
-                if (airDetonation)
-                {
-                    if (targetAcquired && airDetonationTiming)
-                    {                       
-                        detonationRange = BlastPhysicsUtils.CalculateBlastRange(bulletInfo.tntMass);
-                    }
-                    else
-                    {
-                        //detonationRange = defaultDetonationRange;
-                    }
-                }
-            }
-
-            if (airDetonation)
-            {
-                detonationRange *= UnityEngine.Random.Range(0.96f, 1.04f);
-            }
+			//airdetonation
+			if (airDetonation)
+			{
+				if (targetAcquired && airDetonationTiming)
+				{
+					defaultDetonationRange = targetLeadDistance;// adds VT fuzes if/when proximity fuzes fail
+				}
+				else
+				{
+					defaultDetonationRange = maxAirDetonationRange; //airburst at max range
+				}
+			}
+			//removed the detonationange += math.rand, that gets called every frame and just causes the prox fuze range to wander
+		}
 
             finalAimTarget = finalTarget;
 
@@ -1714,50 +1897,147 @@ namespace BDArmory.Modules
             }
         }
 
-        void CheckAIAutofire()
-        {
-            //autofiring with AI
-            if (targetAcquired && aiControlled)
-            {
-                Transform fireTransform = fireTransforms[0];
-                Vector3 targetRelPos = (finalAimTarget) - fireTransform.position;
-                Vector3 aimDirection = fireTransform.forward;
-                float targetCosAngle = Vector3.Dot(aimDirection, targetRelPos.normalized);
+	void RunTrajectorySimulation()
+	{
+	//trajectory simulation
+	if (BDArmorySettings.AIM_ASSIST && BDArmorySettings.DRAW_AIMERS)
+		{
+			Transform fireTransform = fireTransforms[0];
+			if (eWeaponType == WeaponTypes.Laser)
+			{
+				Ray ray = new Ray(fireTransform.position, fireTransform.forward);
+				RaycastHit rayHit;
+				if (Physics.Raycast(ray, out rayHit, maxTargetingRange, 9076737))
+				{
+					bulletPrediction = rayHit.point;
+				}
+				else
+				{
+					bulletPrediction = ray.GetPoint(maxTargetingRange);
+				}
+				pointingAtPosition = ray.GetPoint(maxTargetingRange);
+			}
+			else //ballistic/rocket weapons
+			{
+				float simDeltaTime = 0.155f;
+				float simTime = 0;
+				Vector3 simVelocity;
+				
+				Vector3 pointingDirection;
+				if (eWeaponType == WeaponTypes.Rocket)
+				{
+					simVelocity = part.rb.velocity + Krakensbane.GetFrameVelocityV3f();
+				}
+				else
+				{
+					simVelocity = part.rb.velocity + Krakensbane.GetFrameVelocityV3f() + (bulletVelocity * fireTransform.forward);
+				}
+				pointingDirection = fireTransform.forward;
+				Vector3 simCurrPos = fireTransform.position + ((part.rb.velocity + Krakensbane.GetFrameVelocityV3f()) * Time.fixedDeltaTime);
+				Vector3 simPrevPos = simCurrPos;
+				Vector3 simStartPos = simCurrPos;
+				bool simulating = true;
+				float atmosMultiplier = Mathf.Clamp01(2.5f * (float)FlightGlobals.getAtmDensity(vessel.staticPressurekPa,
+				vessel.externalTemperature, vessel.mainBody));
+				List<Vector3> pointPositions = new List<Vector3>();
+				pointPositions.Add(simCurrPos);
 
-                Vector3 targetDiffVec = finalAimTarget - lastFinalAimTarget;
-                Vector3 projectedTargetPos = targetDiffVec;
-                //projectedTargetPos /= TimeWarp.fixedDeltaTime;
-                //projectedTargetPos *= TimeWarp.fixedDeltaTime;
-                projectedTargetPos *= 2; //project where the target will be in 2 timesteps
-                projectedTargetPos += finalAimTarget;
+				while (simulating)
+				{
+					RaycastHit hit;
+					if (eWeaponType == WeaponTypes.Rocket)
+					{
+						if (simTime > thrustTime)
+						{
+							simDeltaTime = 0.1f;
+						}
+						if (simTime > 0.04f)
+						{
+							simDeltaTime = 0.02f;
+							if (simTime < thrustTime)
+							{
+								simVelocity += thrust / rocketMass * simDeltaTime * pointingDirection;
+							}
+							pointingDirection = Vector3.RotateTowards(pointingDirection,
+							simVelocity + Krakensbane.GetFrameVelocity(),
+							atmosMultiplier * (0.5f * (simTime)) * 50 * simDeltaTime * Mathf.Deg2Rad, 0);
+						}
+					}
+					if (bulletDrop || eWeaponType == WeaponTypes.Rocket)
+					simVelocity += FlightGlobals.getGeeForceAtPosition(simCurrPos) * simDeltaTime;
+					simCurrPos += simVelocity * simDeltaTime;
+					pointPositions.Add(simCurrPos);
 
-                targetDiffVec.Normalize();
-                Vector3 lastTargetRelPos = (lastFinalAimTarget) - fireTransform.position;
+					if (Physics.Raycast(simPrevPos, simCurrPos - simPrevPos, out hit,
+					Vector3.Distance(simPrevPos, simCurrPos), 9076737))
+					{
+						Vessel hitVessel = null;
+						try
+						{
+							KerbalEVA eva = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+							hitVessel = (eva ? eva.part : hit.collider.gameObject.GetComponentInParent<Part>()).vessel;
+						}
+						catch (NullReferenceException)
+						{
+					}
+					if (hitVessel == null || (hitVessel != null && hitVessel != vessel))
+						{
+							bulletPrediction = hit.point;
+							simulating = false;
+						}
+					}
 
-                if (BDATargetManager.CheckSafeToFireGuns(weaponManager, aimDirection, 1000, 0.999848f) //~1 degree of unsafe angle
-                    && targetCosAngle >= maxAutoFireCosAngle) //check if directly on target
-                {
-                    autoFire = true;
-                }
-                else
-                {
-                    autoFire = false;
-                }
-            }
-            else
-            {
-                autoFire = false;
-            }
+					simPrevPos = simCurrPos;
 
-            //disable autofire after burst length
-            if (autoFire && Time.time - autoFireTimer > autoFireLength)
-            {
-                autoFire = false;
-                legacyTargetVessel = null;
-            }
-        }
+					if (legacyTargetVessel != null && legacyTargetVessel.loaded && !legacyTargetVessel.Landed &&
+					(simStartPos - simCurrPos).sqrMagnitude > targetLeadDistance * targetLeadDistance)
+					{
+						bulletPrediction = simStartPos + (simCurrPos - simStartPos).normalized * targetLeadDistance;
+						simulating = false;
+					}
+					if ((simStartPos - simCurrPos).sqrMagnitude > maxTargetingRange * maxTargetingRange)
+					{
+						bulletPrediction = simStartPos + ((simCurrPos - simStartPos).normalized * maxTargetingRange);
+						simulating = false;
+					}
+					simTime += simDeltaTime;
+				}
 
-        IEnumerator AimAndFireAtEndOfFrame()
+				if (BDArmorySettings.DRAW_DEBUG_LINES && BDArmorySettings.DRAW_AIMERS)
+				{
+					Vector3[] pointsArray = pointPositions.ToArray();
+					if (gameObject.GetComponent<LineRenderer>() == null)
+					{
+						LineRenderer lr = gameObject.AddComponent<LineRenderer>();
+						lr.startWidth = .1f;
+						lr.endWidth = .1f;
+						lr.positionCount = pointsArray.Length;
+						for (int i = 0; i < pointsArray.Length; i++)
+						{
+							lr.SetPosition(i, pointsArray[i]);
+						}
+					}
+					else
+					{
+						LineRenderer lr = gameObject.GetComponent<LineRenderer>();
+						lr.enabled = true;
+						lr.positionCount = pointsArray.Length;
+						for (int i = 0; i < pointsArray.Length; i++)
+						{
+							lr.SetPosition(i, pointsArray[i]);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	public Vector3 GetLeadOffset()
+	{
+		return fixedLeadOffset;
+	}
+
+	IEnumerator AimAndFireAtEndOfFrame()
         {
             if (eWeaponType != WeaponTypes.Laser) yield return new WaitForEndOfFrame();
 
@@ -1765,7 +2045,7 @@ namespace BDArmory.Modules
             updateAcceleration(targetVelocity);
             relativeVelocity = targetVelocity - vessel.rb_velocity;
 
-            RunTrajectorySimulation();
+			RunTrajectorySimulation();
             Aim();
             CheckWeaponSafety();
             CheckAIAutofire();
@@ -1801,9 +2081,16 @@ namespace BDArmory.Modules
                     {
                         finalFire = true;
                     }
-
-                    if (finalFire)
-                        Fire();
+					if (eWeaponType == WeaponTypes.Ballistic)
+					{
+						if (finalFire)
+							Fire();
+					}
+					else 
+					{
+						if (finalFire)
+							FireRocket();
+					}
                 }
 
                 finalFire = false;
@@ -1811,180 +2098,147 @@ namespace BDArmory.Modules
 
             yield break;
         }
+	public bool WMgrAuthorized()
+	{
+		MissileFire manager = BDArmorySetup.Instance.ActiveWeaponManager;
+		if (manager != null && manager.vessel == vessel)
+		{
+			if (manager.hasSingleFired) return false;
+			else return true;
+		}
+		else
+		{
+			return true;
+		}
+	}
 
-        public Vector3 GetLeadOffset()
-        {
-            return fixedLeadOffset;
-        }
+	void CheckAIAutofire()
+	{
+		//autofiring with AI
+		if (targetAcquired && aiControlled)
+		{
+			Transform fireTransform = fireTransforms[0];
+			Vector3 targetRelPos = (finalAimTarget) - fireTransform.position;
+			Vector3 aimDirection = fireTransform.forward;
+			float targetCosAngle = Vector3.Dot(aimDirection, targetRelPos.normalized);
+			Vector3 targetDiffVec = finalAimTarget - lastFinalAimTarget;
+			Vector3 projectedTargetPos = targetDiffVec;
+			//projectedTargetPos /= TimeWarp.fixedDeltaTime;
+			//projectedTargetPos *= TimeWarp.fixedDeltaTime;
+			projectedTargetPos *= 2; //project where the target will be in 2 timesteps
+			projectedTargetPos += finalAimTarget;
 
-        void RunTrajectorySimulation()
-        {
-            //trajectory simulation
-            if (BDArmorySettings.AIM_ASSIST && BDArmorySettings.DRAW_AIMERS)
-            {
-                Transform fireTransform = fireTransforms[0];
+			targetDiffVec.Normalize();
+			Vector3 lastTargetRelPos;
+			lastTargetRelPos = (lastFinalAimTarget) - fireTransform.position;
 
-                if (eWeaponType == WeaponTypes.Laser)
-                {
-                    Ray ray = new Ray(fireTransform.position, fireTransform.forward);
-                    RaycastHit rayHit;
-                    if (Physics.Raycast(ray, out rayHit, maxTargetingRange, 9076737))
-                    {
-                        bulletPrediction = rayHit.point;
-                    }
-                    else
-                    {
-                        bulletPrediction = ray.GetPoint(maxTargetingRange);
-                    }
+			if (BDATargetManager.CheckSafeToFireGuns(weaponManager, aimDirection, 1000, 0.999848f) //~1 degree of unsafe angle
+			&& targetCosAngle >= maxAutoFireCosAngle) //check if directly on target
+			{
+				autoFire = true;
+			}
+			else
+			{
+				autoFire = false;
+			}
+		}
+		else
+		{
+			autoFire = false;
+		}
+			//disable autofire after burst length
+		if (autoFire && Time.time - autoFireTimer > autoFireLength)
+		{
+			autoFire = false;
+			legacyTargetVessel = null;
+		}
+	}
+	void CheckWeaponSafety()
+	{
+		pointingAtSelf = false;
+		for (int i = 0; i < fireTransforms.Length; i++)
+		{
+			Ray ray = new Ray(fireTransforms[i].position, fireTransforms[i].forward);
+			RaycastHit hit;
+			if (Physics.Raycast(ray, out hit, maxTargetingRange, 9076737))
+			{
+				KerbalEVA eva = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+				Part p = eva ? eva.part : hit.collider.gameObject.GetComponentInParent<Part>();
+				if (p && p.vessel && p.vessel == vessel)
+				{
+					pointingAtSelf = true;
+					break;
+				}
+			}
+			else
+			{
+				pointingAtSelf = false;
+			}
+			if (targetAcquired)
+			{
+				pointingAtPosition = fireTransforms[i].transform.position + (ray.direction * targetLeadDistance);
+			}
+			else
+			{
+				pointingAtPosition = fireTransforms[i].position + (ray.direction * (maxTargetingRange));
+			}
+		}
+	}
 
-                    pointingAtPosition = ray.GetPoint(maxTargetingRange);
-                }
-                else //ballistic/cannon weapons
-                {
-                    float simDeltaTime = 0.155f;
+	void DrawAlignmentIndicator()
+	{
+		if (fireTransforms == null || fireTransforms[0] == null) return;
+		Transform refTransform = EditorLogic.RootPart.GetReferenceTransform();
+		if (!refTransform) return;
+		Vector3 fwdPos = fireTransforms[0].position + (5 * fireTransforms[0].forward);
+		BDGUIUtils.DrawLineBetweenWorldPositions(fireTransforms[0].position, fwdPos, 4, Color.green);
 
-                    Vector3 simVelocity = part.rb.velocity + Krakensbane.GetFrameVelocityV3f() + (bulletVelocity * fireTransform.forward);
-                    Vector3 simCurrPos = fireTransform.position + ((part.rb.velocity + Krakensbane.GetFrameVelocityV3f()) * Time.fixedDeltaTime);
-                    Vector3 simPrevPos = simCurrPos;
-                    Vector3 simStartPos = simCurrPos;
-                    bool simulating = true;
+		Vector3 referenceDirection = refTransform.up;
+		Vector3 refUp = -refTransform.forward;
+		Vector3 refRight = refTransform.right;
 
-                    List<Vector3> pointPositions = new List<Vector3>();
-                    pointPositions.Add(simCurrPos);
+		Vector3 refFwdPos = fireTransforms[0].position + (5 * referenceDirection);
+		BDGUIUtils.DrawLineBetweenWorldPositions(fireTransforms[0].position, refFwdPos, 2, Color.white);
 
-                    while (simulating)
-                    {
-                        RaycastHit hit;
-                        if (bulletDrop) simVelocity += FlightGlobals.getGeeForceAtPosition(simCurrPos) * simDeltaTime;
-                        simCurrPos += simVelocity * simDeltaTime;
-                        pointPositions.Add(simCurrPos);
+		BDGUIUtils.DrawLineBetweenWorldPositions(fwdPos, refFwdPos, 2, XKCDColors.Orange);
 
-                        if (Physics.Raycast(simPrevPos, simCurrPos - simPrevPos, out hit,
-                            Vector3.Distance(simPrevPos, simCurrPos), 9076737))
-                        {
-                            Vessel hitVessel = null;
-                            try
-                            {
-                                KerbalEVA eva = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
-                                hitVessel = (eva ? eva.part : hit.collider.gameObject.GetComponentInParent<Part>()).vessel;
-                            }
-                            catch (NullReferenceException)
-                            {
-                            }
+		Vector2 guiPos;
+		if (BDGUIUtils.WorldToGUIPos(fwdPos, out guiPos))
+		{
+			Rect angleRect = new Rect(guiPos.x, guiPos.y, 100, 200);
 
-                            if (hitVessel == null || (hitVessel != null && hitVessel != vessel))
-                            {
-                                bulletPrediction = hit.point;
-                                simulating = false;
-                            }
-                        }
+			Vector3 pitchVector = (5 * Vector3.ProjectOnPlane(fireTransforms[0].forward, refRight));
+			Vector3 yawVector = (5 * Vector3.ProjectOnPlane(fireTransforms[0].forward, refUp));
 
-                        simPrevPos = simCurrPos;
+			BDGUIUtils.DrawLineBetweenWorldPositions(fireTransforms[0].position + pitchVector, fwdPos, 3,
+				Color.white);
+			BDGUIUtils.DrawLineBetweenWorldPositions(fireTransforms[0].position + yawVector, fwdPos, 3, Color.white);
 
-                        if (legacyTargetVessel != null && legacyTargetVessel.loaded && !legacyTargetVessel.Landed &&
-                            (simStartPos - simCurrPos).sqrMagnitude > targetLeadDistance*targetLeadDistance)
-                        {
-                            bulletPrediction = simStartPos + (simCurrPos - simStartPos).normalized * targetLeadDistance;
-                            simulating = false;
-                        }
+			float pitch = Vector3.Angle(pitchVector, referenceDirection);
+			float yaw = Vector3.Angle(yawVector, referenceDirection);
 
-                        if ((simStartPos - simCurrPos).sqrMagnitude > maxTargetingRange*maxTargetingRange)
-                        {
-                            bulletPrediction = simStartPos + ((simCurrPos - simStartPos).normalized * maxTargetingRange);
-                            simulating = false;
-                        }
-                    }
+			string convergeDistance;
 
+			Vector3 projAxis = Vector3.Project(refTransform.position - fireTransforms[0].transform.position,
+				refRight);
+			float xDist = projAxis.magnitude;
+			float convergeAngle = 90 - Vector3.Angle(yawVector, refTransform.up);
+			if (Vector3.Dot(fireTransforms[0].forward, projAxis) > 0)
+			{
+				convergeDistance = "Converge: " + Mathf.Round((xDist * Mathf.Tan(convergeAngle * Mathf.Deg2Rad))).ToString() + "m";
+			}
+			else
+			{
+				convergeDistance = "Diverging";
+			}
 
-                    if (BDArmorySettings.DRAW_DEBUG_LINES && BDArmorySettings.DRAW_AIMERS)
-                    {
-                        Vector3[] pointsArray = pointPositions.ToArray();
-                        if (gameObject.GetComponent<LineRenderer>() == null)
-                        {
-                            LineRenderer lr = gameObject.AddComponent<LineRenderer>();
-                            lr.startWidth = .1f;
-                            lr.endWidth = .1f;
-                            lr.positionCount = pointsArray.Length;
-                            for (int i = 0; i < pointsArray.Length; i++)
-                            {
-                                lr.SetPosition(i, pointsArray[i]);
-                            }
-                        }
-                        else
-                        {
-                            LineRenderer lr = gameObject.GetComponent<LineRenderer>();
-                            lr.enabled = true;
-                            lr.positionCount = pointsArray.Length;
-                            for (int i = 0; i < pointsArray.Length; i++)
-                            {
-                                lr.SetPosition(i, pointsArray[i]);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+			string xAngle = "X: " + Vector3.Angle(fireTransforms[0].forward, pitchVector).ToString("0.00");
+			string yAngle = "Y: " + Vector3.Angle(fireTransforms[0].forward, yawVector).ToString("0.00");
 
-        void DrawAlignmentIndicator()
-        {
-            if (fireTransforms == null || fireTransforms[0] == null) return;
-
-            Transform refTransform = EditorLogic.RootPart.GetReferenceTransform();
-
-            if (!refTransform) return;
-
-            Vector3 fwdPos = fireTransforms[0].position + (5 * fireTransforms[0].forward);
-            BDGUIUtils.DrawLineBetweenWorldPositions(fireTransforms[0].position, fwdPos, 4, Color.green);
-
-            Vector3 referenceDirection = refTransform.up;
-            Vector3 refUp = -refTransform.forward;
-            Vector3 refRight = refTransform.right;
-
-            Vector3 refFwdPos = fireTransforms[0].position + (5 * referenceDirection);
-            BDGUIUtils.DrawLineBetweenWorldPositions(fireTransforms[0].position, refFwdPos, 2, Color.white);
-
-            BDGUIUtils.DrawLineBetweenWorldPositions(fwdPos, refFwdPos, 2, XKCDColors.Orange);
-
-            Vector2 guiPos;
-            if (BDGUIUtils.WorldToGUIPos(fwdPos, out guiPos))
-            {
-                Rect angleRect = new Rect(guiPos.x, guiPos.y, 100, 200);
-
-                Vector3 pitchVector = (5 * Vector3.ProjectOnPlane(fireTransforms[0].forward, refRight));
-                Vector3 yawVector = (5 * Vector3.ProjectOnPlane(fireTransforms[0].forward, refUp));
-
-                BDGUIUtils.DrawLineBetweenWorldPositions(fireTransforms[0].position + pitchVector, fwdPos, 3,
-                    Color.white);
-                BDGUIUtils.DrawLineBetweenWorldPositions(fireTransforms[0].position + yawVector, fwdPos, 3, Color.white);
-
-                float pitch = Vector3.Angle(pitchVector, referenceDirection);
-                float yaw = Vector3.Angle(yawVector, referenceDirection);
-
-                string convergeDistance;
-
-                Vector3 projAxis = Vector3.Project(refTransform.position - fireTransforms[0].transform.position,
-                    refRight);
-                float xDist = projAxis.magnitude;
-                float convergeAngle = 90 - Vector3.Angle(yawVector, refTransform.up);
-                if (Vector3.Dot(fireTransforms[0].forward, projAxis) > 0)
-                {
-                    convergeDistance = "Converge: " +
-                                       Mathf.Round((xDist * Mathf.Tan(convergeAngle * Mathf.Deg2Rad))).ToString() + "m";
-                }
-                else
-                {
-                    convergeDistance = "Diverging";
-                }
-
-                string xAngle = "X: " + Vector3.Angle(fireTransforms[0].forward, pitchVector).ToString("0.00");
-                string yAngle = "Y: " + Vector3.Angle(fireTransforms[0].forward, yawVector).ToString("0.00");
-
-                GUI.Label(angleRect, xAngle + "\n" + yAngle + "\n" + convergeDistance);
-            }
-        }
-
-
-        #endregion
+			GUI.Label(angleRect, xAngle + "\n" + yAngle + "\n" + convergeDistance);
+			}
+	}
+	#endregion
 
         #region Updates
         void UpdateHeat()
@@ -2005,51 +2259,158 @@ namespace BDArmory.Modules
                 heat = 0;
             }
         }
-		void UpdateHeatMeter()
-        {
-            //heat
-            if (heat > maxHeat / 3)
-            {
-                if (heatGauge == null)
-                {
-                    heatGauge = InitHeatGauge();
-                }
+		void UpdateAmmo()
+		{
+			if (!BDArmorySettings.INFINITE_AMMO)
+			{
+				if (ammoAmount > 0)
+				{
+					isOutofAmmo = false;
+				}
+				else
+				{
+					isOutofAmmo = true;
+					wasFiring = false;
+					weaponManager.ResetGuardInterval();
+				}
+			}
+			else
+			{
+				isOutofAmmo = false;
+			}
+		}
+		public void UpdateAmmoMeter()
+		{
+			if (!BDArmorySettings.INFINITE_AMMO)
+			{
+				if (!isOutofAmmo)
+				{
+					if (ammoGauge == null)
+					{
+						ammoGauge = InitAmmoGauge();
+					}
+					ammoGauge?.SetValue(ammoAmount, 0, ammoMax);  //null check
+				}
+				else if (ammoGauge != null && isOutofAmmo)
+				{
+					part.stackIcon.ClearInfoBoxes();
+					ammoGauge = null;
+					emptyGauge = null;
+					UpdateEmptyAlert();
+				}
+			}
+			else //clear ammo gauges if infinite ammo, they're unnecessary
+			{
+				part.stackIcon.ClearInfoBoxes();
+				ammoGauge = null;
+				heatGauge = null;
+				reloadBar = null;
+				emptyGauge = null;
+				UpdateHeatMeter();
+				UpdateReloadMeter();
+			}
+		}
+		public void UpdateEmptyAlert()
+		{
+			if (!BDArmorySettings.INFINITE_AMMO)
+			{
+				if (isOutofAmmo)
+				{
+					if (emptyGauge == null)
+					{
+						emptyGauge = InitEmptyGauge();
+					}
+					emptyGauge?.SetValue(1, 0, 1);    //null check
+				}
+				else if (emptyGauge != null && !isOutofAmmo)
+				{
+					part.stackIcon.ClearInfoBoxes();
+					ammoGauge = null;
+					emptyGauge = null;
+					heatGauge = null;
+					reloadBar = null;
+				}
+			}
+			else
+			{
+				part.stackIcon.ClearInfoBoxes();
+				ammoGauge = null;
+				emptyGauge = null;
+				heatGauge = null;
+				reloadBar = null;
+			}
 
-                heatGauge?.SetValue(heat, maxHeat / 3, maxHeat);    //null check
-            }
-            else if (heatGauge != null && heat < maxHeat / 4)
-            {
-                part.stackIcon.ClearInfoBoxes();
-                heatGauge = null;
+		}
+		void UpdateHeatMeter()
+		{
+			//heat
+			if (heat > maxHeat / 3)
+			{
+				if (heatGauge == null)
+				{
+					heatGauge = InitHeatGauge();
+				}
+
+				heatGauge?.SetValue(heat, maxHeat / 3, maxHeat);    //null check
+			}
+			else if (heatGauge != null && heat < maxHeat / 4)
+			{
+				part.stackIcon.ClearInfoBoxes();
+				heatGauge = null;
+				ammoGauge = null;
+				emptyGauge = null;
+				if (!BDArmorySettings.INFINITE_AMMO)
+				{
+					if (!isOutofAmmo)
+					{
+						UpdateAmmoMeter();
+					}
+					else
+					{
+						UpdateEmptyAlert();
+					}
+				}
 			}
 		}
 
 		void UpdateReloadMeter()
-        {
-            if (Time.time - timeFired < (60 / roundsPerMinute) && Time.time - timeFired > 0.1f)
-            {
-                if (reloadBar == null)
-                {
-                    reloadBar = InitReloadBar();
-                    if (reloadAudioClip)
-                    {
-                        audioSource.PlayOneShot(reloadAudioClip);
-                    }
-                }
-                reloadBar.SetValue(Time.time - timeFired, 0, 60 / roundsPerMinute);
-            }
-            else if (reloadBar != null)
-            {
-                part.stackIcon.ClearInfoBoxes();
-                reloadBar = null;
-                if (reloadCompleteAudioClip)
-                {
-                    audioSource.PlayOneShot(reloadCompleteAudioClip);
-                }
-            }
-        }
-
-        void UpdateTargetVessel()
+		{
+			if (Time.time - timeFired < (60 / roundsPerMinute) && Time.time - timeFired > 0.1f)
+			{
+				if (reloadBar == null)
+				{
+					reloadBar = InitReloadBar();
+					if (reloadAudioClip)
+					{
+						audioSource.PlayOneShot(reloadAudioClip);
+					}
+				}
+				reloadBar.SetValue(Time.time - timeFired, 0, 60 / roundsPerMinute);
+			}
+			else if (reloadBar != null)
+			{
+				part.stackIcon.ClearInfoBoxes();
+				reloadBar = null;
+				emptyGauge = null;
+				ammoGauge = null;
+				if (reloadCompleteAudioClip)
+				{
+					audioSource.PlayOneShot(reloadCompleteAudioClip);
+				}
+				if (!BDArmorySettings.INFINITE_AMMO)
+				{
+					if (!isOutofAmmo)
+					{
+						UpdateAmmoMeter();
+					}
+					else
+					{
+						UpdateEmptyAlert();
+					}
+				}
+			}
+		}
+		void UpdateTargetVessel()
         {
             targetAcquired = false;
             slaved = false;
@@ -2187,6 +2548,35 @@ namespace BDArmory.Modules
             }
             return v;
         }
+		private ProtoStageIconInfo InitAmmoGauge() //thanks DYJ
+		{
+			ProtoStageIconInfo a = part.stackIcon.DisplayInfo();
+			// fix nullref if no stackicon exists
+			if (a != null)
+			{
+				a.SetMsgBgColor(XKCDColors.Grey);
+				a.SetMsgTextColor(XKCDColors.Yellow);
+				//a.SetMessage("Ammunition");
+				a.SetMessage($"{ammoName}");
+				a.SetProgressBarBgColor(XKCDColors.DarkGrey);
+				a.SetProgressBarColor(XKCDColors.Yellow);
+			}
+			return a;
+		}
+		private ProtoStageIconInfo InitEmptyGauge() //thanks DYJ
+		{
+			ProtoStageIconInfo g = part.stackIcon.DisplayInfo();
+			// fix nullref if no stackicon exists
+			if (g != null)
+			{
+				g.SetMsgBgColor(XKCDColors.AlmostBlack);
+				g.SetMsgTextColor(XKCDColors.Yellow);
+				g.SetMessage("Ammo Depleted");
+				g.SetProgressBarBgColor(XKCDColors.Yellow);
+				g.SetProgressBarColor(XKCDColors.Black);
+			}
+			return g;
+		}
 		IEnumerator StartupRoutine()
         {
             weaponState = WeaponStates.PoweringUp;
@@ -2310,9 +2700,17 @@ namespace BDArmory.Modules
                 bulletDragTypeName = bulletInfo.bulletDragTypeName;
                 cannonShellHeat = bulletInfo.blastHeat;
                 cannonShellPower = bulletInfo.blastPower;
-                cannonShellRadius = bulletInfo.blastRadius;      
-            }
+                cannonShellRadius = bulletInfo.blastRadius;
+		detonationRange = bulletInfo.tntMass;
+		detonationRange = (float)((14.8f * Math.Pow(detonationRange, 1 / 3f))*(2/3));
+
+		}
             ParseBulletDragType();
+		if (eWeaponType == WeaponTypes.Rocket)
+		{
+			detonationRange = blastForce;
+			detonationRange = (float)((14.8f * Math.Pow(detonationRange, 1 / 3f)) * (2 / 3));
+		}
         }
         #endregion
 
@@ -2329,15 +2727,30 @@ namespace BDArmory.Modules
             {
                 output.AppendLine($"Laser damage: {laserDamage}");
             }
-            else
+		else
             {
                 output.AppendLine($"Rounds Per Minute: {roundsPerMinute * (fireTransforms?.Length ?? 1)}");
                 output.AppendLine($"Ammunition: {ammoName}");
-                output.AppendLine($"Bullet type: {bulletType}");
-                output.AppendLine($"Bullet mass: {Math.Round(binfo.bulletMass,2)} kg");
-                output.AppendLine($"Muzzle velocity: {Math.Round(binfo.bulletVelocity, 2)} m/s");
-                output.AppendLine($"Max Range: {maxEffectiveDistance} m");
-                if (weaponType == "cannon" || weaponType == "ballistic")
+		if (weaponType == "ballistic")
+		{
+			output.AppendLine($"Bullet type: {bulletType}");
+			output.AppendLine($"Bullet mass: {Math.Round(binfo.bulletMass, 2)} kg");
+			output.AppendLine($"Muzzle velocity: {Math.Round(binfo.bulletVelocity, 2)} m/s");
+		}
+			output.AppendLine($"Max Range: {maxEffectiveDistance} m");
+			if (weaponType == "rocket")
+			{
+				output.AppendLine($"Blast:");
+				output.AppendLine($"- radius: {blastRadius}");
+				output.AppendLine($"- power: {blastForce}");
+				output.AppendLine($"- heat: {blastHeat}");
+				output.AppendLine($"Proximity Fuzed: {proximityDetonation}");
+				if (proximityDetonation)
+				{
+					output.AppendLine($"- fuze radius: {detonationRange} m");
+				}
+			}
+			if (weaponType == "ballistic")
                 {
                     output.AppendLine($"Explosive: {binfo.explosive}");
                     if (binfo.explosive)
@@ -2351,13 +2764,17 @@ namespace BDArmory.Modules
                             output.AppendLine($"- auto timing: {airDetonationTiming}");
                             output.AppendLine($"- max range: {maxAirDetonationRange} m");
                         }
-                    }
+				output.AppendLine($"Proximity Fuzed: {proximityDetonation}");
+				if (proximityDetonation)
+				{
+					output.AppendLine($"- fuze radius: {detonationRange} m");
+				}
+			}
                 }
             }
             return output.ToString();
         }
-
-		#endregion
+	#endregion
 	}
 	#region UI //borrowing code from ModularMissile GUI
 	[KSPAddon(KSPAddon.Startup.EditorAny, false)]
