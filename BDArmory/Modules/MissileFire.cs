@@ -3387,7 +3387,7 @@ namespace BDArmory.Modules
 							targetYield = canidateYield;
 							targetWeapon = item.Current;
 						}
-						if (((MissileBase)item.Current).GuidanceMode != MissileBase.GuidanceModes.None)
+						else if (((MissileBase)item.Current).GuidanceMode != MissileBase.GuidanceModes.None)
 						{
 							if (targetYield > canidateYield) continue;
 							targetYield = canidateYield;
