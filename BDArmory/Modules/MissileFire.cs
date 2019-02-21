@@ -3352,9 +3352,11 @@ namespace BDArmory.Modules
 						// - guided missiles
 						// - by blast strength
 						float canidateYield = ((MissileBase)item.Current).GetBlastRadius();
-						Vector3 srfSpeed = currentTarget.Vessel.Velocity();
+						double srfSpeed = currentTarget.Vessel.horizontalSrfSpeed;
+						bool canidateAGM = false;
+						bool canidateAntiRad = false;
 
-						if (srfSpeed.magnitude <= 2) // set higher than 0 in case of physics jitteriness
+						if (srfSpeed < 1) // set higher than 0 in case of physics jitteriness
 						{
 							if (((MissileBase)item.Current).TargetingMode == MissileBase.TargetingModes.Gps ||
 								(((MissileBase)item.Current).GuidanceMode == MissileBase.GuidanceModes.Cruise ||
@@ -3363,35 +3365,47 @@ namespace BDArmory.Modules
 							{
 								if (targetWeapon != null && targetYield > canidateYield) continue; //prioritize biggest Boom
 								targetYield = canidateYield;
+								canidateAGM = true;
 								targetWeapon = item.Current;
 								if (distance > ((MissileBase)item.Current).engageRangeMin)
 									break;  //Prioritize cruise
 							}
 						}
-						if (((MissileBase)item.Current).TargetingMode == MissileBase.TargetingModes.AntiRad && (rwr.rwrEnabled && rwr.pingsData.Length > 0))
+						if (((MissileBase)item.Current).TargetingMode == MissileBase.TargetingModes.AntiRad && (rwr && rwr.rwrEnabled))
 						{// make it so this only selects antirad when hostile radar
 							for (int i = 0; i < rwr.pingsData.Length; i++)
+							{
 								if (rwr.pingsData[i].signalStrength == 0 || rwr.pingsData[i].signalStrength == 5)
 								{
 									if ((rwr.pingWorldPositions[i] - guardTarget.CoM).sqrMagnitude < 20 * 20) //is current target a hostile radar source?
 									{
-										if (targetWeapon != null && targetYield > canidateYield) continue; //prioritize biggest Boom
-										targetYield = canidateYield;
-										targetWeapon = item.Current;
+										canidateAntiRad = true;
 									}
 								}
+							}
+							if (canidateAntiRad)
+							{
+								if (targetWeapon != null && targetYield > canidateYield) continue; //prioritize biggest Boom
+								targetYield = canidateYield;
+								targetWeapon = item.Current;
+								canidateAGM = true;
+							}									
 						}
-						if (((MissileBase)item.Current).TargetingMode == MissileBase.TargetingModes.Laser)
+						else if (((MissileBase)item.Current).TargetingMode == MissileBase.TargetingModes.Laser)
 						{
-							if (targetYield > canidateYield) continue;
+							if ((targetWeapon != null && targetYield > canidateYield) && !canidateAntiRad) continue;
+							canidateAGM = true;
 							targetYield = canidateYield;
 							targetWeapon = item.Current;
 						}
-						else if (((MissileBase)item.Current).GuidanceMode != MissileBase.GuidanceModes.None)
+						else
 						{
-							if (targetYield > canidateYield) continue;
-							targetYield = canidateYield;
-							targetWeapon = item.Current;
+							if (!canidateAGM)
+							{
+								if (targetWeapon != null && targetYield > canidateYield) continue;
+								targetYield = canidateYield;
+								targetWeapon = item.Current;
+							}
 						}
 					}
 
