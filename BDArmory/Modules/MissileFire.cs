@@ -1375,12 +1375,19 @@ namespace BDArmory.Modules
                     designatedGPSInfo = new GPSTargetInfo(VectorUtils.WorldPositionToGeoCoords(guardTarget.CoM, vessel.mainBody), guardTarget.vesselName.Substring(0, Mathf.Min(12, guardTarget.vesselName.Length)));
                     //this will fire the missile as soon as las designator aquires target, regardless of missile facing
                     float angle = Vector3.Angle((VectorUtils.WorldPositionToGeoCoords(guardTarget.CoM, vessel.mainBody)) - ml.transform.position, ml.GetForwardTransform());
-					if (angle < 45) // so lets make sure missile is pointing vaguely in the right direction
-					{
-						FireCurrentMissile(true);
-						//if (FireCurrentMissile(true))
-						//    StartCoroutine(MissileAwayRoutine(ml)); //NEW: try to prevent launching all missile complements at once...
-					}               
+		    if (vessel.LandedOrSplashed) // go ahead and launch
+		    {
+			//if (FireCurrentMissile(true))
+			//    StartCoroutine(MissileAwayRoutine(ml)); //NEW: try to prevent launching all missile complements at once...
+			FireCurrentMissile(true);
+		    }
+		    else // presumably airlaunched stuff probably won't be in a VLS, so let's make sure missile pointing vaguely in the right direction
+		    {
+		        if (angle < 45)
+		        {
+			    FireCurrentMissile(true);
+		        }
+		    }           
                 }
                 else if (ml.TargetingMode == MissileBase.TargetingModes.AntiRad)
                 {
@@ -1440,14 +1447,20 @@ namespace BDArmory.Modules
                     }
                     if (ml && laserPointDetected && foundCam && (foundCam.groundTargetPosition - guardTarget.CoM).sqrMagnitude < 20 * 20)
                     {//this will fire the missile as soon as las designator aquires target, regardless of missile facing
-                        float angle = Vector3.Angle(foundCam.groundTargetPosition - ml.transform.position, ml.GetForwardTransform());
-
-						if (angle < 45) // so lets make sure missile is pointing vaguely in the right direction
-						{
-							FireCurrentMissile(true);
-							//if (FireCurrentMissile(true))
-							//    StartCoroutine(MissileAwayRoutine(ml)); //NEW: try to prevent launching all missile complements at once...
-						}
+                    float angle = Vector3.Angle((VectorUtils.WorldPositionToGeoCoords(guardTarget.CoM, vessel.mainBody)) - ml.transform.position, ml.GetForwardTransform());
+		    if (vessel.LandedOrSplashed) // go ahead and launch
+			{
+			    //if (FireCurrentMissile(true))
+			    //    StartCoroutine(MissileAwayRoutine(ml)); //NEW: try to prevent launching all missile complements at once...
+			    FireCurrentMissile(true);
+			}
+			else // presumably airlaunched stuff probably won't be in a VLS, so let's make sure missile pointing vaguely in the right direction
+			{
+			    if (angle < 45)
+			    {
+				FireCurrentMissile(true);
+			    }
+			}    
                     }
                     else
                     {
@@ -3172,8 +3185,8 @@ namespace BDArmory.Modules
             float targetWeaponTDPS = 0;
             float targetWeaponImpact = 0;
             float targetLaserDamage = 0;
-			float targetYield = 0;
-			float targetRocketPower = 0;
+	    float targetYield = 0;
+	    float targetRocketPower = 0;
 
             if (target.isMissile)
             {
@@ -3191,35 +3204,35 @@ namespace BDArmory.Modules
                     // weapon usable, if missile continue looking for lasers/guns, else take it
                     WeaponClasses candidateClass = item.Current.GetWeaponClass();
 
-					if (candidateClass == WeaponClasses.DefenseLaser)
-					{
-						float canidateYTraverse = ((ModuleWeapon)item.Current).yawRange;
-						float canidatePTraverse = ((ModuleWeapon)item.Current).maxPitch;
+		    if (candidateClass == WeaponClasses.DefenseLaser)
+		    {
+			float canidateYTraverse = ((ModuleWeapon)item.Current).yawRange;
+			float canidatePTraverse = ((ModuleWeapon)item.Current).maxPitch;
 
-						if (targetWeapon != null && (canidateYTraverse > 0 || canidatePTraverse > 0)) //prioritize turreted lasers
-						{
-							targetWeapon = item.Current;
-								break;
-						}
-						targetWeapon = item.Current;
-							break;
-					}
-					if (candidateClass == WeaponClasses.Gun)
-					{
-						// For point defense, favor turrets and RoF
-						float candidateRPM = ((ModuleWeapon)item.Current).roundsPerMinute;
-						float canidateYTraverse = ((ModuleWeapon)item.Current).yawRange;
-						float canidatePTraverse = ((ModuleWeapon)item.Current).maxPitch;
-						if (targetWeapon != null && (canidateYTraverse > 0 || canidatePTraverse > 0))
-						{
-							candidateRPM *= 2.0f; // weight selection towards turrets
-						}
-						if ((targetWeapon != null) && (targetWeaponRPM > candidateRPM))
-							continue; //dont replace better guns (but do replace missiles)
+			if (targetWeapon != null && (canidateYTraverse > 0 || canidatePTraverse > 0)) //prioritize turreted lasers
+			{
+			    targetWeapon = item.Current;
+				break;
+			}
+			targetWeapon = item.Current;
+			    break;
+		    }
+		    if (candidateClass == WeaponClasses.Gun)
+		    {
+			// For point defense, favor turrets and RoF
+			float candidateRPM = ((ModuleWeapon)item.Current).roundsPerMinute;
+			float canidateYTraverse = ((ModuleWeapon)item.Current).yawRange;
+			float canidatePTraverse = ((ModuleWeapon)item.Current).maxPitch;
+			if (targetWeapon != null && (canidateYTraverse > 0 || canidatePTraverse > 0))
+			{
+			    candidateRPM *= 2.0f; // weight selection towards turrets
+			}
+			if ((targetWeapon != null) && (targetWeaponRPM > candidateRPM))
+			    continue; //dont replace better guns (but do replace missiles)
 
-						targetWeapon = item.Current;
-						targetWeaponRPM = candidateRPM;
-					}
+			    targetWeapon = item.Current;
+			    targetWeaponRPM = candidateRPM;
+		    }
                     if (candidateClass != WeaponClasses.Missile) continue;
                     // TODO: for AA, favour higher thrust+turnDPS
 
@@ -3263,40 +3276,40 @@ namespace BDArmory.Modules
                     // weapon usable, if missile continue looking for lasers/guns, else take it
                     WeaponClasses candidateClass = item.Current.GetWeaponClass();
 
-					if (candidateClass == WeaponClasses.DefenseLaser)
-					{
-						// For AAA, favour higher power/turreted
-						float candidatePower = ((ModuleWeapon)item.Current).laserDamage;
-						bool canidateGimbal = ((ModuleWeapon)item.Current).turret;
-						float canidateTraverse = ((ModuleWeapon)item.Current).yawRange;
-						if ((targetWeapon != null) && (canidateGimbal = true && canidateTraverse > 0))
-						{
-							candidatePower *= 1.5f; // weight selection towards turreted lasers
-						}
-						if ((targetWeapon != null) && (targetLaserDamage > candidatePower))
-							continue; //dont replace better guns (but do replace missiles)
+		    if (candidateClass == WeaponClasses.DefenseLaser)
+		    {
+			// For AAA, favour higher power/turreted
+			float candidatePower = ((ModuleWeapon)item.Current).laserDamage;
+			bool canidateGimbal = ((ModuleWeapon)item.Current).turret;
+			float canidateTraverse = ((ModuleWeapon)item.Current).yawRange;
+			if ((targetWeapon != null) && (canidateGimbal = true && canidateTraverse > 0))
+			{
+			    candidatePower *= 1.5f; // weight selection towards turreted lasers
+			}
+			if ((targetWeapon != null) && (targetLaserDamage > candidatePower))
+			    continue; //dont replace better guns (but do replace missiles)
 
-						targetWeapon = item.Current;
-						targetLaserDamage = candidatePower;
-						if (distance <= gunRange) //fix break code to prevent NREs
-							break;
-					}
-					if (candidateClass == WeaponClasses.Gun)
-					{
-						// For AAA, favour higher RPM
-						float candidateRPM = ((ModuleWeapon)item.Current).roundsPerMinute;
-						bool canidatePFuzed = ((ModuleWeapon)item.Current).proximityDetonation;
-						bool canidateVTFuzed = ((ModuleWeapon)item.Current).airDetonation;
-						if (targetWeapon != null && (canidatePFuzed || canidateVTFuzed))
-						{
-							candidateRPM *= 1.5f; // weight selection towards fuzed rounds
-						}
-						if ((targetWeapon != null) && (targetWeaponRPM > candidateRPM))
-							continue; //dont replace better guns (but do replace missiles)
+			    targetWeapon = item.Current;
+			    targetLaserDamage = candidatePower;
+			    if (distance <= gunRange) //fix break code to prevent NREs
+				break;
+		    }
+		    if (candidateClass == WeaponClasses.Gun)
+		    {
+			// For AAA, favour higher RPM
+			float candidateRPM = ((ModuleWeapon)item.Current).roundsPerMinute;
+			bool canidatePFuzed = ((ModuleWeapon)item.Current).proximityDetonation;
+			bool canidateVTFuzed = ((ModuleWeapon)item.Current).airDetonation;
+			if (targetWeapon != null && (canidatePFuzed || canidateVTFuzed))
+			{
+			    candidateRPM *= 1.5f; // weight selection towards fuzed rounds
+			}
+			if ((targetWeapon != null) && (targetWeaponRPM > candidateRPM))
+		            continue; //dont replace better guns (but do replace missiles)
 
-						targetWeapon = item.Current;
-						targetWeaponRPM = candidateRPM;
-					}
+			    targetWeapon = item.Current;
+			    targetWeaponRPM = candidateRPM;
+		    }
 
                     if (candidateClass != WeaponClasses.Missile) continue;
                     MissileLauncher mlauncher = item.Current as MissileLauncher;
@@ -3346,68 +3359,68 @@ namespace BDArmory.Modules
                     WeaponClasses candidateClass = item.Current.GetWeaponClass();
 
                     if (candidateClass == WeaponClasses.Missile)
-					{
-						// Priority Sequence:
-						// - Antiradiation
-						// - guided missiles
-						// - by blast strength
-						float canidateYield = ((MissileBase)item.Current).GetBlastRadius();
-						double srfSpeed = currentTarget.Vessel.horizontalSrfSpeed;
-						bool canidateAGM = false;
-						bool canidateAntiRad = false;
+		    {
+			// Priority Sequence:
+			// - Antiradiation
+			// - guided missiles
+			// - by blast strength
+			float canidateYield = ((MissileBase)item.Current).GetBlastRadius();
+			double srfSpeed = currentTarget.Vessel.horizontalSrfSpeed;
+			bool canidateAGM = false;
+			bool canidateAntiRad = false;
 
-						if (srfSpeed < 1) // set higher than 0 in case of physics jitteriness
-						{
-							if (((MissileBase)item.Current).TargetingMode == MissileBase.TargetingModes.Gps ||
-								(((MissileBase)item.Current).GuidanceMode == MissileBase.GuidanceModes.Cruise ||
-								  ((MissileBase)item.Current).GuidanceMode == MissileBase.GuidanceModes.AGMBallistic ||
-								  ((MissileBase)item.Current).GuidanceMode == MissileBase.GuidanceModes.None))
-							{
-								if (targetWeapon != null && targetYield > canidateYield) continue; //prioritize biggest Boom
-								targetYield = canidateYield;
-								canidateAGM = true;
-								targetWeapon = item.Current;
-								if (distance > ((MissileBase)item.Current).engageRangeMin)
-									break;  //Prioritize cruise
-							}
-						}
-						if (((MissileBase)item.Current).TargetingMode == MissileBase.TargetingModes.AntiRad && (rwr && rwr.rwrEnabled))
-						{// make it so this only selects antirad when hostile radar
-							for (int i = 0; i < rwr.pingsData.Length; i++)
-							{
-								if (rwr.pingsData[i].signalStrength == 0 || rwr.pingsData[i].signalStrength == 5)
-								{
-									if ((rwr.pingWorldPositions[i] - guardTarget.CoM).sqrMagnitude < 20 * 20) //is current target a hostile radar source?
-									{
-										canidateAntiRad = true;
-									}
-								}
-							}
-							if (canidateAntiRad)
-							{
-								if (targetWeapon != null && targetYield > canidateYield) continue; //prioritize biggest Boom
-								targetYield = canidateYield;
-								targetWeapon = item.Current;
-								canidateAGM = true;
-							}									
-						}
-						else if (((MissileBase)item.Current).TargetingMode == MissileBase.TargetingModes.Laser)
-						{
-							if ((targetWeapon != null && targetYield > canidateYield) && !canidateAntiRad) continue;
-							canidateAGM = true;
-							targetYield = canidateYield;
-							targetWeapon = item.Current;
-						}
-						else
-						{
-							if (!canidateAGM)
-							{
-								if (targetWeapon != null && targetYield > canidateYield) continue;
-								targetYield = canidateYield;
-								targetWeapon = item.Current;
-							}
-						}
-					}
+			if (srfSpeed < 1) // set higher than 0 in case of physics jitteriness
+			{
+			    if (((MissileBase)item.Current).TargetingMode == MissileBase.TargetingModes.Gps ||
+				(((MissileBase)item.Current).GuidanceMode == MissileBase.GuidanceModes.Cruise ||
+				((MissileBase)item.Current).GuidanceMode == MissileBase.GuidanceModes.AGMBallistic ||
+				((MissileBase)item.Current).GuidanceMode == MissileBase.GuidanceModes.None))
+			    {
+			        if (targetWeapon != null && targetYield > canidateYield) continue; //prioritize biggest Boom
+				targetYield = canidateYield;
+				canidateAGM = true;
+				targetWeapon = item.Current;
+				if (distance > ((MissileBase)item.Current).engageRangeMin)
+				    break;  //Prioritize cruise
+			    }
+			}
+			if (((MissileBase)item.Current).TargetingMode == MissileBase.TargetingModes.AntiRad && (rwr && rwr.rwrEnabled))
+			{// make it so this only selects antirad when hostile radar
+			    for (int i = 0; i < rwr.pingsData.Length; i++)
+			    {
+				if (rwr.pingsData[i].signalStrength == 0 || rwr.pingsData[i].signalStrength == 5)
+			        {
+				    if ((rwr.pingWorldPositions[i] - guardTarget.CoM).sqrMagnitude < 20 * 20) //is current target a hostile radar source?
+				    {
+					canidateAntiRad = true;
+				    }
+				}
+			    }
+			    if (canidateAntiRad)
+			    {
+				if (targetWeapon != null && targetYield > canidateYield) continue; //prioritize biggest Boom
+				targetYield = canidateYield;
+				targetWeapon = item.Current;
+				canidateAGM = true;
+			    }									
+			}	
+			else if (((MissileBase)item.Current).TargetingMode == MissileBase.TargetingModes.Laser)
+			{
+			    if ((targetWeapon != null && targetYield > canidateYield) && !canidateAntiRad) continue;
+			        canidateAGM = true;
+				targetYield = canidateYield;
+				targetWeapon = item.Current;
+			}
+			else
+			{
+			    if (!canidateAGM)
+			    {
+				if (targetWeapon != null && targetYield > canidateYield) continue;
+				targetYield = canidateYield;
+				targetWeapon = item.Current;
+			    }
+			}
+		    }
 
                     // TargetInfo.isLanded includes splashed but not underwater, for whatever reasons.
                     // If target is splashed, and we have torpedoes, use torpedoes, because, obviously,
@@ -3421,45 +3434,44 @@ namespace BDArmory.Modules
                     }
 
                     if (candidateClass == WeaponClasses.Bomb)
-					{
-						// only useful if we are flying
-						float canidateYield = ((MissileBase)item.Current).GetBlastRadius();
-						if (!vessel.LandedOrSplashed)
-						{
-							// Priority Sequence:
-							// - guided (JDAM)
-							// - by blast strength
-							// - find way to implement cluster bomb selection priority?
-							if (((MissileBase)item.Current).GuidanceMode == MissileBase.GuidanceModes.AGMBallistic)
-							{
-								if (targetYield > canidateYield) continue; //prioritize biggest Boom
-								targetYield = canidateYield;
-								targetWeapon = item.Current;
-								if (targetWeapon != null && distance > canidateYield) // don't drop bombs when within blast radius
-									break;  //Prioritize guided bombs
-							}
-							if (((MissileBase)item.Current).GuidanceMode == MissileBase.GuidanceModes.None)
-							{
-								if (targetYield > canidateYield) continue;
-								targetYield = canidateYield;
-								targetWeapon = item.Current;
-								if (targetWeapon != null && distance > canidateYield)
-									break;  //then standard
-							}
-						}
-					}
-					if (candidateClass == WeaponClasses.Rocket)
-					{
-						float canidateRocketPower = ((RocketLauncher)item.Current).blastForce;
+		    {
+			// only useful if we are flying
+			float canidateYield = ((MissileBase)item.Current).GetBlastRadius();
+			if (!vessel.LandedOrSplashed)
+			{
+			    // Priority Sequence:
+			    // - guided (JDAM)
+			    // - by blast strength
+			    // - find way to implement cluster bomb selection priority?
+			    if (((MissileBase)item.Current).GuidanceMode == MissileBase.GuidanceModes.AGMBallistic)
+			    {
+				if (targetYield > canidateYield) continue; //prioritize biggest Boom
+				targetYield = canidateYield;
+				targetWeapon = item.Current;
+				if (targetWeapon != null && distance > canidateYield) // don't drop bombs when within blast radius
+				    break;  //Prioritize guided bombs
+			    }
+			    if (((MissileBase)item.Current).GuidanceMode == MissileBase.GuidanceModes.None)
+			    {
+				if (targetYield > canidateYield) continue;
+				targetYield = canidateYield;
+				targetWeapon = item.Current;
+				if (targetWeapon != null && distance > canidateYield)
+				    break;  //then standard
+			    }
+			}
+		    }
+		    if (candidateClass == WeaponClasses.Rocket)
+		    {
+			float canidateRocketPower = ((RocketLauncher)item.Current).blastForce;
+			if ((targetWeapon != null) && (targetWeapon.GetWeaponClass() == WeaponClasses.Bomb)) continue;
+			// dont replace bombs
 
-						if ((targetWeapon != null) && (targetWeapon.GetWeaponClass() == WeaponClasses.Bomb)) continue;
-						// dont replace bombs
-
-						if ((targetWeapon != null) && (targetRocketPower > canidateRocketPower))
-							continue; //don't replace higher yield rockets
-						targetWeapon = item.Current;
-						targetRocketPower = canidateRocketPower;
-					}
+			if ((targetWeapon != null) && (targetRocketPower > canidateRocketPower))
+    			    continue; //don't replace higher yield rockets
+			    targetWeapon = item.Current;
+			    targetRocketPower = canidateRocketPower;
+		    }
 
                     if ((candidateClass != WeaponClasses.Gun)) continue;
                     // Flying: prefer bombs/rockets/missiles
