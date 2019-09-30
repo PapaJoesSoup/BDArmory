@@ -98,8 +98,27 @@ namespace BDArmory.Modules
         private double angularVelocity;
         private double angularAcceleration;
 
-        private double lasAngularVelocity
-            ;
+        private double lasAngularVelocity;
+
+		[KSPField(isPersistant = true)] //#721
+		public bool ResourcesEnabled = false;
+
+		[KSPEvent(guiActive = true, guiActiveEditor = true, guiName = "Enable Resource Flow", active = true, advancedTweakable = true)]
+		public void ToggleResources() 
+		{
+			ResourcesEnabled = !ResourcesEnabled;
+
+			if (ResourcesEnabled == false)
+			{
+				Events["ToggleResources"].guiName = "Disable Resource Flow";
+				EnableResourceFlow(_vesselParts);
+			}
+			else
+			{
+				Events["ToggleResources"].guiName = "Enable Resource Flow";
+				DisableResourcesFlow();
+			}
+		}
 
         #endregion KSP FIELDS
 
