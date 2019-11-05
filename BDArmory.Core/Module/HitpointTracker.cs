@@ -44,7 +44,7 @@ namespace BDArmory.Core.Module
         private bool _firstSetup = true;
         private bool _updateHitpoints = false;
         private bool _forceUpdateHitpointsUI = false;
-        private const int HpRounding = 100;
+        private const int HpRounding = 50; //lets reduce this from 100 to 50 for smoother HP scaling
 
         public override void OnLoad(ConfigNode node)
         {
@@ -163,29 +163,42 @@ namespace BDArmory.Core.Module
 
             if (!part.IsMissile())
             {
-                var averageSize = part.GetAverageBoundSize();
-                var sphereRadius = averageSize * 0.5f;
-                var sphereSurface = 4 * Mathf.PI * sphereRadius * sphereRadius;
-                var structuralVolume = sphereSurface * 0.1f;
+					var averageSize = part.GetAverageBoundSize();
+					var sphereRadius = averageSize * 0.5f;
+					var sphereSurface = 4 * Mathf.PI * sphereRadius * sphereRadius;
+					var structuralVolume = sphereSurface * 0.1f;
 
-                var density = (part.mass * 1000f) / structuralVolume;
-                density = Mathf.Clamp(density, 1000, 10000);
-                //Debug.Log("[BDArmory]: Hitpoint Calc" + part.name + " | structuralVolume : " + structuralVolume);
-                //Debug.Log("[BDArmory]: Hitpoint Calc"+part.name+" | Density : " + density);
+					var density = (part.mass * 1000f) / structuralVolume;
+					density = Mathf.Clamp(density, 1000, 10000);
+					//Debug.Log("[BDArmory]: Hitpoint Calc" + part.name + " | structuralVolume : " + structuralVolume);
+					//Debug.Log("[BDArmory]: Hitpoint Calc"+part.name+" | Density : " + density);
 
-                var structuralMass = density * structuralVolume;
-                //Debug.Log("[BDArmory]: Hitpoint Calc" + part.name + " | structuralMass : " + structuralMass);
-                //3. final calculations
-                hitpoints = structuralMass * hitpointMultiplier * 0.33f;
+					var structuralMass = density * structuralVolume;
+					//Debug.Log("[BDArmory]: Hitpoint Calc" + part.name + " | structuralMass : " + structuralMass);
+					//3. final calculations
+					hitpoints = structuralMass * hitpointMultiplier * 0.33f;
 
-                if (hitpoints > 10 * part.mass * 1000f || hitpoints < 0.1f * part.mass * 1000f)
-                {
-                    Debug.Log($"[BDArmory]: HitpointTracker::Clamping hitpoints for part {part.name}");
-                    hitpoints = hitpointMultiplier * part.mass * 333f;
-                }
+				if (hitpoints > 10 * part.mass * 1000f || hitpoints < 0.1f * part.mass * 1000f)
+				{
+					Debug.Log($"[BDArmory]: HitpointTracker::Clamping hitpoints for part {part.name}");
+					hitpoints = hitpointMultiplier * part.mass * 333f;
+				}
 
+				if (part.name.Contains("B9.Aero.Wing.Procedural")) // the above works for basic cylindrical-esque parts, but not wings, esp. not proc wings
+				{
+					hitpoints = (part.mass * 1000f) * 3.5f; // since wings are basically a 2d object, lets have mass be our scalar - afterall, 2x the mass will ~= 2x the surfce area
+				}
+				if (part.IsAero())
+				{
+					hitpoints = (part.mass * 1000f) * 7f; // stock wings are half the mass of proc wings, at least in FAR. Will need to check stock aero wing masses.
+				}
+				if (part.IsCtrlSrf())
+				{
+					hitpoints = 100f+ (part.mass * 1000f) * 5f; // Crtl surfaces will have actuators of some flavor, are going to be more fragile. +100 for guaranteed min health
+				}
                 hitpoints = Mathf.Round(hitpoints / HpRounding) * HpRounding;
                 if (hitpoints <= 0) hitpoints = HpRounding;
+				if (hitpoints < 100) hitpoints = 100;
             }
             else
             {

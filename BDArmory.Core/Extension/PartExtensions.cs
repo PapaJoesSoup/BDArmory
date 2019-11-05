@@ -294,7 +294,7 @@ namespace BDArmory.Core.Extension
 
             if (part.name.Contains("B9.Aero.Wing.Procedural"))
             {
-                size = size * 0.1f;
+                //size = size * 0.1f; 
             }
 
             float scaleMultiplier = 1f;
@@ -308,11 +308,16 @@ namespace BDArmory.Core.Extension
             return size * scaleMultiplier;
         }
 
-        public static bool IsAero(this Part part)
+         public static bool IsAero(this Part part)
         {
-            return part.Modules.Contains("ModuleControlSurface") ||
-                   part.Modules.Contains("ModuleLiftingSurface");
-        }
+			return part.Modules.Contains("ModuleLiftingSurface") ||
+				   part.Modules.Contains("FARWingAerodynamicModel");
+		}
+		public static bool IsCtrlSrf(this Part part)
+		{
+			return part.Modules.Contains("ModuleControlSurface") ||
+				   part.Modules.Contains("FARControllableSurface");
+		}
 
         public static string GetExplodeMode(this Part part)
         {

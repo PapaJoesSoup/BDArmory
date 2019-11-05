@@ -220,7 +220,7 @@ namespace BDArmory.Modules
                         true, (float)RWRThreatTypes.MissileLaunch)));
                 PlayWarningSound(RWRThreatTypes.MissileLaunch);
 
-                if (weaponManager && weaponManager.guardMode)
+                if (weaponManager && weaponManager.guardMode && (weaponManager.incomingMissileDistance < 4000))
                 {
                     weaponManager.FireAllCountermeasures(Random.Range(2, 4));
                     weaponManager.incomingThreatPosition = source;
@@ -254,7 +254,7 @@ namespace BDArmory.Modules
                 }
                 else if (type == RWRThreatTypes.MissileLock)
                 {
-                    if (weaponManager && weaponManager.guardMode)
+                    if (weaponManager && weaponManager.guardMode && (weaponManager.incomingMissileDistance < 4000))
                     {
                         weaponManager.FireChaff();
                         // TODO: if torpedo inbound, also fire accoustic decoys (not yet implemented...)

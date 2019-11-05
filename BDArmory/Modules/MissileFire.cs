@@ -385,6 +385,14 @@ namespace BDArmory.Modules
         public float
             gunRange = 2500f;
 
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "Chaff Interval"),
+         UI_FloatRange(minValue = 0f, maxValue = 5f, stepIncrement = 0.05f, scene = UI_Scene.All)]
+        public float chaffInterval = 0.5f;
+
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "Flare Interval"),
+         UI_FloatRange(minValue = 0f, maxValue = 5f, stepIncrement = 0.05f, scene = UI_Scene.All)]
+        public float flareInterval = 0.5f;
+
         public const float maxAllowableMissilesOnTarget = 18f;
 
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Missiles/Target"), UI_FloatRange(minValue = 1f, maxValue = maxAllowableMissilesOnTarget, stepIncrement = 1f, scene = UI_Scene.All)]
@@ -1806,7 +1814,7 @@ namespace BDArmory.Modules
         IEnumerator ChaffRoutine()
         {
             isChaffing = true;
-            yield return new WaitForSeconds(UnityEngine.Random.Range(0.2f, 1f));
+            yield return new WaitForSeconds(chaffInterval/2);
             List<CMDropper>.Enumerator cm = vessel.FindPartModulesImplementing<CMDropper>().GetEnumerator();
             while (cm.MoveNext())
             {
@@ -1818,7 +1826,7 @@ namespace BDArmory.Modules
             }
             cm.Dispose();
 
-            yield return new WaitForSeconds(0.6f);
+            yield return new WaitForSeconds(chaffInterval/2);
 
             isChaffing = false;
         }
@@ -1828,7 +1836,7 @@ namespace BDArmory.Modules
             if (isFlaring) yield break;
             time = Mathf.Clamp(time, 2, 8);
             isFlaring = true;
-            yield return new WaitForSeconds(UnityEngine.Random.Range(0f, 1f));
+            yield return new WaitForSeconds(flareInterval/2);
             float flareStartTime = Time.time;
             while (Time.time - flareStartTime < time)
             {
@@ -1842,7 +1850,7 @@ namespace BDArmory.Modules
                     }
                 }
                 cm.Dispose();
-                yield return new WaitForSeconds(0.6f);
+                yield return new WaitForSeconds(flareInterval/2);
             }
             isFlaring = false;
         }
