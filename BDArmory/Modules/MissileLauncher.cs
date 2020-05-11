@@ -1573,9 +1573,10 @@ namespace BDArmory.Modules
                 this._guidance = new CruiseGuidance(this);
             }
 
-            Vector3 cruiseTarget = Vector3.zero;
+            var cruiseTarget = this._guidance.GetDirection(this, TargetPosition, out var timeToImpact);
 
-            cruiseTarget = this._guidance.GetDirection(this,TargetPosition);
+            TimeToImpact = (float)timeToImpact;
+
 
             Vector3 upDirection = VectorUtils.GetUpDirection(transform.position);
 

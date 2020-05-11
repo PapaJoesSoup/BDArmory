@@ -614,7 +614,11 @@ namespace BDArmory.Modules
                 this._guidance = new CruiseGuidance(this);
             }
 
-            return this._guidance.GetDirection(this,TargetPosition);
+            var newDirection = this._guidance.GetDirection(this, TargetPosition, out var timeToImpact);
+
+            TimeToImpact = (float) timeToImpact;
+
+            return newDirection;
         }
 
         private void CheckMiss(Vector3 targetPosition)

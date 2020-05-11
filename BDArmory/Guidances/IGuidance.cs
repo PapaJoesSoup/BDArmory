@@ -5,6 +5,6 @@ namespace BDArmory.Guidances
 {
     public interface IGuidance
     {
-        Vector3 GetDirection(MissileBase missile, Vector3 targetPosition);
+        Vector3 GetDirection(MissileBase missile, Vector3 targetPosition, out double timeToImpact);
     }
 }

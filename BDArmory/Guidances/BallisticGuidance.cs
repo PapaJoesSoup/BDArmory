@@ -12,7 +12,7 @@ namespace BDArmory.Guidances
         private double _originalDistance = float.MinValue;
 
 
-        public Vector3 GetDirection(MissileBase missile, Vector3 targetPosition)
+        public Vector3 GetDirection(MissileBase missile, Vector3 targetPosition, out double timeToImpact)
         {
             //set up
             if (_originalDistance == float.MinValue)
@@ -26,8 +26,11 @@ namespace BDArmory.Guidances
 
             var pendingDistance = _originalDistance - surfaceDistanceVector.magnitude;
 
+            timeToImpact = pendingDistance / missile.vessel.horizontalSrfSpeed;
+
             if (missile.TimeIndex < 1)
             {
+                
                 return missile.vessel.CoM + missile.vessel.Velocity() * 10;
             }
 

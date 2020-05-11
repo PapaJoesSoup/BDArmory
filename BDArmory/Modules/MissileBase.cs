@@ -846,7 +846,11 @@ namespace BDArmory.Modules
                 _guidance = new BallisticGuidance();
             }
 
-            return _guidance.GetDirection(this, targetPosition);
+            var newDirection = this._guidance.GetDirection(this, TargetPosition, out var timeToImpact);
+
+            TimeToImpact = (float)timeToImpact;
+
+            return newDirection;
         }
 
       

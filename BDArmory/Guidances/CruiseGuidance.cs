@@ -32,8 +32,8 @@ namespace BDArmory.Guidances
     public class CruiseGuidance : IGuidance
     {
         private readonly MissileBase _missile;
-       
-
+        private Vector3 _startPoint;
+        private double _originalDistance = float.MinValue;
         private float _pitchAngle;
         private double _futureAltitude;
         private double _futureSpeed;
@@ -59,9 +59,23 @@ namespace BDArmory.Guidances
 
         public GuidanceState GuidanceState { get; set; }
 
-        public Vector3 GetDirection(MissileBase missile, Vector3 targetPosition)
+        public Vector3 GetDirection(MissileBase missile, Vector3 targetPosition, out double timeToImpact)
         {
             //set up
+            if (_originalDistance == float.MinValue)
+            {
+                _startPoint = missile.vessel.CoM;
+                _originalDistance = Vector3.Distance(targetPosition, missile.vessel.CoM);
+            }
+
+            var surfaceDistanceVector = Vector3
+                .Project((missile.vessel.CoM - _startPoint), (targetPosition - _startPoint).normalized);
+
+            var pendingDistance = _originalDistance - surfaceDistanceVector.magnitude;
+
+            timeToImpact = pendingDistance / missile.vessel.horizontalSrfSpeed;
+
+
             if (_missile.TimeIndex < 1)
                 return _missile.vessel.CoM + _missile.vessel.Velocity() * 10;
 
@@ -215,21 +229,6 @@ namespace BDArmory.Guidances
 
             return currentRadarAlt;
         }
-
-        //private static double CalculateAltitude(Vector3 position, Vector3 upDirection, float currentRadarAlt, Vector3 tRayDirection)
-        //{
-        //    var terrainRay = new Ray(position, tRayDirection);
-        //    RaycastHit rayHit;
-
-        //    if (Physics.Raycast(terrainRay, out rayHit, 30000, (1 << 15) | (1 << 17)))
-        //    {
-        //        var detectedAlt =
-        //            Vector3.Project(rayHit.point - position, upDirection).magnitude;
-
-        //        return Mathf.Min(detectedAlt, currentRadarAlt);
-        //    }
-        //    return currentRadarAlt;
-        //}
 
         private bool CalculateFutureCollision(float predictionTime)
         {
