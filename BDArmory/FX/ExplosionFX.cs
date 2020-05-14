@@ -37,15 +37,17 @@ namespace BDArmory.FX
 
         private float particlesMaxEnergy;
 
-        public static Queue<ExplosionFx> ExplosionsLoaded = new Queue<ExplosionFx>();
+       
 
         private void Start()
         {
-            ExplosionsLoaded.Enqueue(this);
+           
             StartTime = Time.time;
             MaxTime = (Range / ExplosionVelocity) * 3f;
             CalculateBlastEvents();
             PEmitters = gameObject.GetComponentsInChildren<KSPParticleEmitter>();
+
+            
             IEnumerator<KSPParticleEmitter> pe = PEmitters.AsEnumerable().GetEnumerator();
             while (pe.MoveNext())
             {
@@ -63,7 +65,7 @@ namespace BDArmory.FX
             LightFx.color = Misc.Misc.ParseColor255("255,238,184,255");
             LightFx.intensity = 8;
             LightFx.range = Range * 3f;
-            LightFx.shadows = LightShadows.None;
+            LightFx.shadows = LightShadows.Soft;
 
             if (BDArmorySettings.DRAW_DEBUG_LABELS)
             {
@@ -229,6 +231,12 @@ namespace BDArmory.FX
 
         public void Update()
         {
+            if (!HighLogic.LoadedSceneIsFlight)
+            {
+                ExplosionEvents.Clear();
+                return;
+            }
+
             LightFx.intensity -= 12 * Time.deltaTime;
             if (TimeIndex > 0.2f)
             {
@@ -249,7 +257,6 @@ namespace BDArmory.FX
                         "[BDArmory]:Explosion Finished");
                 }
 
-                ExplosionsLoaded.Dequeue();
                 Destroy(gameObject);
                 return;
             }
@@ -257,6 +264,12 @@ namespace BDArmory.FX
 
         public void FixedUpdate()
         {
+            if (!HighLogic.LoadedSceneIsFlight)
+            {
+                ExplosionEvents.Clear();
+                return;
+            }
+
             //floating origin and velocity offloading corrections
             if (!FloatingOrigin.Offset.IsZero() || !Krakensbane.GetFrameVelocity().IsZero())
             {
@@ -281,6 +294,8 @@ namespace BDArmory.FX
 
         private void ExecuteBuildingBlastEvent(BuildingBlastHitEvent eventToExecute)
         {
+            if (!HighLogic.LoadedSceneIsFlight) return;
+
             //TODO: Review if the damage is sensible after so many changes
             //buildings
             DestructibleBuilding building = eventToExecute.Building;
@@ -383,7 +398,11 @@ namespace BDArmory.FX
 
         public static void CreateExplosion(Vector3 position, float tntMassEquivalent, string explModelPath, string soundPath, bool isMissile = true, float caliber = 0, Part explosivePart = null, Vector3 direction = default(Vector3))
         {
-            if (ExplosionsLoaded.Count > 5) return;
+            if (!HighLogic.LoadedSceneIsFlight)
+            {
+                return;
+            }
+
             var go = GameDatabase.Instance.GetModel(explModelPath);
             var soundClip = GameDatabase.Instance.GetAudioClip(soundPath);
 
@@ -405,6 +424,7 @@ namespace BDArmory.FX
             eFx.AudioSource.maxDistance = 5500;
             eFx.AudioSource.spatialBlend = 1;
             eFx.Range = BlastPhysicsUtils.CalculateBlastRange(tntMassEquivalent);
+            eFx.AudioSource.maxDistance = eFx.Range;
             eFx.Position = position;
             eFx.Power = tntMassEquivalent;
             eFx.IsMissile = isMissile;

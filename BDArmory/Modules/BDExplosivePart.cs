@@ -120,9 +120,9 @@ namespace BDArmory.Modules
         {
             if (!hasDetonated && Armed)
             {
-                part.Destroy();
                 ExplosionFx.CreateExplosion(part.transform.position, tntMass,
                     explModelPath, explSoundPath, true, 0, part);
+
             }
         }
 
